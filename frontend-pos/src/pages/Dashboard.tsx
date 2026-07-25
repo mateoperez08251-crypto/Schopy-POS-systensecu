@@ -9,7 +9,6 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, 
   ResponsiveContainer, Cell
 } from 'recharts';
-import TopNav from '../components/TopNav';
 import { useDashboardData } from '../hooks/useDashboardData';
 
 const Dashboard = () => {
@@ -32,7 +31,27 @@ const Dashboard = () => {
     setTimeout(() => showToast("Reporte descargado exitosamente: reporte_ventas_ia.pdf"), 1500);
   };
 
-  if (loading) return <div style={{ padding: 40, opacity: 0.5 }}>Cargando datos del servidor...</div>;
+  if (loading) {
+    return (
+      <main className="main-content" style={{ display: 'flex', flexDirection: 'row', justifyContent: 'center', alignItems: 'center', height: '80vh', gap: '40px' }}>
+        <div className="loader">
+          <svg viewBox="0 0 80 80">
+            <circle r="32" cy="40" cx="40" id="test"></circle>
+          </svg>
+        </div>
+        <div className="loader triangle">
+          <svg viewBox="0 0 86 80">
+            <polygon points="43 8 79 72 7 72"></polygon>
+          </svg>
+        </div>
+        <div className="loader">
+          <svg viewBox="0 0 80 80">
+            <rect height="64" width="64" y="8" x="8"></rect>
+          </svg>
+        </div>
+      </main>
+    );
+  }
 
   // Filtrar datos del gráfico según la selección
   let filteredRevenue = data.revenue;
@@ -42,8 +61,7 @@ const Dashboard = () => {
   if (timeFilter === '1 D') filteredRevenue = data.revenue.slice(-1).map(d => ({ ...d, uv: d.uv / 30 })); // mock
 
   return (
-    <main className="main-content" style={{ position: 'relative' }}>
-      <TopNav title="Panel de Control" />
+    <div style={{ position: 'relative' }}>
 
       {/* Toast Notification */}
       {toast && (
@@ -302,7 +320,7 @@ const Dashboard = () => {
           </div>
         </div>
       </div>
-    </main>
+    </div>
   );
 };
 

@@ -4,56 +4,41 @@ import './index.css';
 
 // Componentes
 import Sidebar from './components/Sidebar';
+import OfflineOverlay from './components/OfflineOverlay';
+import TopNav from './components/TopNav';
 
 // Páginas
 import Dashboard from './pages/Dashboard';
 import POS from './pages/POS';
 import Inventory from './pages/Inventory';
 import Audit from './pages/Audit';
+import SalesHistory from './pages/SalesHistory';
+import Login from './pages/Login';
 
 function App() {
-  const [isLoading, setIsLoading] = useState(true);
+  const [salesHistory, setSalesHistory] = useState<any[]>([]);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
 
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setIsLoading(false);
-    }, 3000);
-    return () => clearTimeout(timer);
-  }, []);
-
-  if (isLoading) {
-    return (
-      <div className="loading-screen">
-        <div className="loader">
-          <svg viewBox="0 0 80 80">
-            <circle r="32" cy="40" cx="40" id="test"></circle>
-          </svg>
-        </div>
-        <div className="loader triangle">
-          <svg viewBox="0 0 86 80">
-            <polygon points="43 8 79 72 7 72"></polygon>
-          </svg>
-        </div>
-        <div className="loader">
-          <svg viewBox="0 0 80 80">
-            <rect height="64" width="64" y="8" x="8"></rect>
-          </svg>
-        </div>
-      </div>
-    );
+  if (!isAuthenticated) {
+    return <Login onLogin={() => setIsAuthenticated(true)} />;
   }
 
   return (
     <Router>
       <div className="app-layout">
+        <OfflineOverlay />
         <Sidebar />
-        <Routes>
-          <Route path="/" element={<Dashboard />} />
-          <Route path="/pos" element={<POS />} />
-          <Route path="/inventory" element={<Inventory />} />
-          <Route path="/audit" element={<Audit />} />
-          <Route path="*" element={<div style={{padding: '40px', flex:1}}><h2>Página en construcción</h2></div>} />
-        </Routes>
+        <div className="main-content">
+          <TopNav title="" />
+          <Routes>
+            <Route path="/" element={<Dashboard />} />
+            <Route path="/pos" element={<POS salesHistory={salesHistory} setSalesHistory={setSalesHistory} />} />
+            <Route path="/sales-history" element={<SalesHistory salesHistory={salesHistory} />} />
+            <Route path="/inventory" element={<Inventory />} />
+            <Route path="/audit" element={<Audit />} />
+            <Route path="*" element={<div style={{padding: '40px', flex:1}}><h2>Página en construcción</h2></div>} />
+          </Routes>
+        </div>
       </div>
     </Router>
   );

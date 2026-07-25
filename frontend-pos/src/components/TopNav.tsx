@@ -79,10 +79,11 @@ const TopNav = ({ title = "Panel de Control" }: { title?: string }) => {
           {/* Menú de Notificaciones */}
           <div style={{ position: 'relative' }} ref={notifRef}>
             <div 
+              className="bell-button"
               onClick={() => setShowNotifications(!showNotifications)}
               style={{ padding: '8px', borderRadius: '50%', border: '1px solid var(--border-medium)', background: 'var(--bg-card)', position: 'relative', cursor: 'pointer' }}
             >
-              <Bell size={18} color="var(--text-secondary)" />
+              <Bell className="bell-icon" size={18} color="var(--text-secondary)" />
               {notifications.length > 0 && (
                 <div style={{ position: 'absolute', top: -2, right: -2, width: 8, height: 8, background: 'var(--accent-danger)', borderRadius: '50%' }}></div>
               )}
