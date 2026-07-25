@@ -9,6 +9,7 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, 
   ResponsiveContainer, Cell
 } from 'recharts';
+import * as XLSX from 'xlsx';
 import { useDashboardData } from '../hooks/useDashboardData';
 
 const Dashboard = () => {
@@ -26,108 +27,111 @@ const Dashboard = () => {
   };
 
   const handleExport = () => {
-    showToast("Generando reporte...");
+    showToast("Generando reporte Excel...");
 
-    // Construir CSV con formato detallado para Excel
     const now = new Date();
     const fecha = now.toLocaleDateString('es-DO');
     const hora = now.toLocaleTimeString('es-DO');
-    let csv = '\uFEFF'; // BOM para caracteres especiales en Excel
 
-    // Función auxiliar para celdas vacías (para estructurar columnas en Excel)
-    const emptyRow = ',,,,,,\n';
-    const divider = '======================================,,,,,\n';
+    // Estructurar los datos en un Array of Arrays (AoA) para Excel
+    const wbData: any[][] = [];
 
     // ==========================================
     // CABECERA DEL REPORTE
     // ==========================================
-    csv += 'REPORTE FINANCIERO Y OPERATIVO DE VENTAS\n';
-    csv += 'Empresa:,SCHOPY POS SYSTEM SA.\n';
-    csv += `Fecha de Generación:,${fecha}\n`;
-    csv += `Hora de Generación:,${hora}\n`;
-    csv += emptyRow;
+    wbData.push(['REPORTE FINANCIERO Y OPERATIVO DE VENTAS']);
+    wbData.push(['Empresa:', 'SCHOPY POS SYSTEM SA.']);
+    wbData.push(['Fecha de Generación:', fecha]);
+    wbData.push(['Hora de Generación:', hora]);
+    wbData.push([]);
 
     // ==========================================
     // SECCIÓN 1: MÉTRICAS GENERALES
     // ==========================================
-    csv += divider;
-    csv += 'SECCIÓN 1: RESUMEN GENERAL (MÉTRICAS CLAVE),,,,,\n';
-    csv += divider;
-    csv += 'Métrica,Valor,Notas,,,\n';
-    csv += `Total Facturas Emitidas,${data.metrics.invoices},Operaciones registradas,,,\n`;
-    csv += `Ticket Promedio de Venta,${data.metrics.avgTicket},Gasto promedio por cliente,,,\n`;
-    csv += `Ingresos Totales Brutos,${data.metrics.totalRevenue},Sin descontar costos operativos,,,\n`;
-    csv += `Ganancia Neta Calculada,${data.metrics.netProfit},Beneficio final retenido,,,\n`;
-    csv += emptyRow;
-    csv += emptyRow;
+    wbData.push(['======================================']);
+    wbData.push(['SECCIÓN 1: RESUMEN GENERAL (MÉTRICAS CLAVE)']);
+    wbData.push(['======================================']);
+    wbData.push(['Métrica', 'Valor', 'Notas']);
+    wbData.push(['Total Facturas Emitidas', data.metrics.invoices, 'Operaciones registradas']);
+    wbData.push(['Ticket Promedio de Venta', data.metrics.avgTicket, 'Gasto promedio por cliente']);
+    wbData.push(['Ingresos Totales Brutos', data.metrics.totalRevenue, 'Sin descontar costos operativos']);
+    wbData.push(['Ganancia Neta Calculada', data.metrics.netProfit, 'Beneficio final retenido']);
+    wbData.push([]);
+    wbData.push([]);
 
     // ==========================================
     // SECCIÓN 2: DESGLOSE FINANCIERO (GANANCIAS Y COSTOS)
     // ==========================================
-    csv += divider;
-    csv += 'SECCIÓN 2: DESGLOSE FINANCIERO MENSUAL Y GANANCIAS,,,,,\n';
-    csv += divider;
-    csv += 'Período,Ingresos Brutos ($),Costos Operativos/Inventario ($),Ganancia Neta ($),Margen de Ganancia (%),\n';
+    wbData.push(['======================================']);
+    wbData.push(['SECCIÓN 2: DESGLOSE FINANCIERO MENSUAL Y GANANCIAS']);
+    wbData.push(['======================================']);
+    wbData.push(['Período', 'Ingresos Brutos ($)', 'Costos Operativos/Inventario ($)', 'Ganancia Neta ($)', 'Margen de Ganancia (%)']);
     
     let totalIngresos = 0;
     let totalCostos = 0;
     let totalGanancias = 0;
 
     data.financials.forEach(f => {
-      const margen = f.ingresos > 0 ? ((f.ganancia / f.ingresos) * 100).toFixed(1) : 0;
-      csv += `${f.name},"${f.ingresos.toLocaleString()}","${f.costos.toLocaleString()}","${f.ganancia.toLocaleString()}",${margen}%\n`;
+      const margen = f.ingresos > 0 ? ((f.ganancia / f.ingresos) * 100).toFixed(1) : '0';
+      wbData.push([f.name, f.ingresos, f.costos, f.ganancia, `${margen}%`]);
       totalIngresos += f.ingresos;
       totalCostos += f.costos;
       totalGanancias += f.ganancia;
     });
     
-    // Fila de totales para finanzas
-    const margenTotal = totalIngresos > 0 ? ((totalGanancias / totalIngresos) * 100).toFixed(1) : 0;
-    csv += `TOTALES ACUMULADOS,"${totalIngresos.toLocaleString()}","${totalCostos.toLocaleString()}","${totalGanancias.toLocaleString()}",${margenTotal}%\n`;
-    csv += emptyRow;
-    csv += emptyRow;
+    // Fila de totales
+    const margenTotal = totalIngresos > 0 ? ((totalGanancias / totalIngresos) * 100).toFixed(1) : '0';
+    wbData.push(['TOTALES ACUMULADOS', totalIngresos, totalCostos, totalGanancias, `${margenTotal}%`]);
+    wbData.push([]);
+    wbData.push([]);
 
     // ==========================================
     // SECCIÓN 3: RENDIMIENTO DE PRODUCTOS
     // ==========================================
-    csv += divider;
-    csv += 'SECCIÓN 3: TOP 5 PRODUCTOS DE MAYOR RENDIMIENTO,,,,,\n';
-    csv += divider;
-    csv += 'Ranking,Nombre del Producto,Unidades Vendidas,Ingresos Generados ($),Precio Promedio de Venta ($),\n';
+    wbData.push(['======================================']);
+    wbData.push(['SECCIÓN 3: TOP 5 PRODUCTOS DE MAYOR RENDIMIENTO']);
+    wbData.push(['======================================']);
+    wbData.push(['Ranking', 'Nombre del Producto', 'Unidades Vendidas', 'Ingresos Generados ($)', 'Precio Promedio de Venta ($)']);
     data.topProducts.forEach((p, index) => {
-      const avgPrice = p.sold > 0 ? (p.revenue / p.sold).toFixed(2) : 0;
-      csv += `#${index + 1},${p.name},${p.sold},"${p.revenue.toLocaleString()}",${avgPrice}\n`;
+      const avgPrice = p.sold > 0 ? Number((p.revenue / p.sold).toFixed(2)) : 0;
+      wbData.push([`#${index + 1}`, p.name, p.sold, p.revenue, avgPrice]);
     });
-    csv += emptyRow;
-    csv += emptyRow;
+    wbData.push([]);
+    wbData.push([]);
 
     // ==========================================
     // SECCIÓN 4: AUDITORÍA Y SEGURIDAD IA
     // ==========================================
-    csv += divider;
-    csv += 'SECCIÓN 4: REPORTE DE RETENCIÓN Y AUDITORÍA IA,,,,,\n';
-    csv += divider;
-    csv += 'Mes,Falsos Positivos,Alertas Verificadas,Alertas Pendientes,Total Incidentes,\n';
+    wbData.push(['======================================']);
+    wbData.push(['SECCIÓN 4: REPORTE DE RETENCIÓN Y AUDITORÍA IA']);
+    wbData.push(['======================================']);
+    wbData.push(['Mes', 'Falsos Positivos', 'Alertas Verificadas', 'Alertas Pendientes', 'Total Incidentes']);
     data.retention.forEach(r => {
       const total = r.falsosPositivos + r.verificados + r.pendientes;
-      csv += `${r.name},${r.falsosPositivos},${r.verificados},${r.pendientes},${total}\n`;
+      wbData.push([r.name, r.falsosPositivos, r.verificados, r.pendientes, total]);
     });
-    csv += emptyRow;
-    
-    csv += '*** FIN DEL REPORTE ***,,,,,\n';
+    wbData.push([]);
+    wbData.push(['*** FIN DEL REPORTE ***']);
 
-    // Crear y descargar el archivo CSV
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `reporte_schopy_${now.toISOString().split('T')[0]}.csv`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
+    // Crear libro de trabajo (workbook) y hoja de cálculo (worksheet)
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.aoa_to_sheet(wbData);
 
-    setTimeout(() => showToast("Reporte detallado exportado a Excel con éxito"), 500);
+    // Ajustar el ancho de las columnas
+    ws['!cols'] = [
+      { wch: 30 }, // A
+      { wch: 25 }, // B
+      { wch: 30 }, // C
+      { wch: 25 }, // D
+      { wch: 25 }  // E
+    ];
+
+    XLSX.utils.book_append_sheet(wb, ws, "Reporte Principal");
+
+    // Generar y descargar el archivo XLSX
+    XLSX.writeFile(wb, `Reporte_Ventas_Schopy_${now.toISOString().split('T')[0]}.xlsx`);
+
+    setTimeout(() => showToast("Reporte Excel descargado exitosamente"), 500);
   };
 
   if (loading) {
