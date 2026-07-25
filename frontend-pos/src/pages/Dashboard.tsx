@@ -28,44 +28,95 @@ const Dashboard = () => {
   const handleExport = () => {
     showToast("Generando reporte...");
 
-    // Construir CSV con datos reales del dashboard
+    // Construir CSV con formato detallado para Excel
     const now = new Date();
     const fecha = now.toLocaleDateString('es-DO');
+    const hora = now.toLocaleTimeString('es-DO');
     let csv = '\uFEFF'; // BOM para caracteres especiales en Excel
 
-    // Sección: Métricas Generales
-    csv += 'REPORTE DE VENTAS - SCHOPY POS\n';
-    csv += `Fecha de generación,${fecha}\n\n`;
-    csv += 'MÉTRICAS GENERALES\n';
-    csv += `Facturas Emitidas,${data.metrics.invoices}\n`;
-    csv += `Ticket Promedio,${data.metrics.avgTicket}\n`;
-    csv += `Ingresos Totales,${data.metrics.totalRevenue}\n`;
-    csv += `Ganancias Netas,${data.metrics.netProfit}\n\n`;
+    // Función auxiliar para celdas vacías (para estructurar columnas en Excel)
+    const emptyRow = ',,,,,,\n';
+    const divider = '======================================,,,,,\n';
 
-    // Sección: Ingresos por Mes
-    csv += 'INGRESOS MENSUALES\n';
-    csv += 'Mes,Monto ($)\n';
-    data.revenue.forEach(r => {
-      csv += `${r.name},${r.uv}\n`;
-    });
-    csv += '\n';
+    // ==========================================
+    // CABECERA DEL REPORTE
+    // ==========================================
+    csv += 'REPORTE FINANCIERO Y OPERATIVO DE VENTAS\n';
+    csv += 'Empresa:,SCHOPY POS SYSTEM SA.\n';
+    csv += `Fecha de Generación:,${fecha}\n`;
+    csv += `Hora de Generación:,${hora}\n`;
+    csv += emptyRow;
 
-    // Sección: Comparativo Financiero
-    csv += 'COMPARATIVO FINANCIERO\n';
-    csv += 'Mes,Ingresos ($),Costos ($),Ganancia Neta ($)\n';
+    // ==========================================
+    // SECCIÓN 1: MÉTRICAS GENERALES
+    // ==========================================
+    csv += divider;
+    csv += 'SECCIÓN 1: RESUMEN GENERAL (MÉTRICAS CLAVE),,,,,\n';
+    csv += divider;
+    csv += 'Métrica,Valor,Notas,,,\n';
+    csv += `Total Facturas Emitidas,${data.metrics.invoices},Operaciones registradas,,,\n`;
+    csv += `Ticket Promedio de Venta,${data.metrics.avgTicket},Gasto promedio por cliente,,,\n`;
+    csv += `Ingresos Totales Brutos,${data.metrics.totalRevenue},Sin descontar costos operativos,,,\n`;
+    csv += `Ganancia Neta Calculada,${data.metrics.netProfit},Beneficio final retenido,,,\n`;
+    csv += emptyRow;
+    csv += emptyRow;
+
+    // ==========================================
+    // SECCIÓN 2: DESGLOSE FINANCIERO (GANANCIAS Y COSTOS)
+    // ==========================================
+    csv += divider;
+    csv += 'SECCIÓN 2: DESGLOSE FINANCIERO MENSUAL Y GANANCIAS,,,,,\n';
+    csv += divider;
+    csv += 'Período,Ingresos Brutos ($),Costos Operativos/Inventario ($),Ganancia Neta ($),Margen de Ganancia (%),\n';
+    
+    let totalIngresos = 0;
+    let totalCostos = 0;
+    let totalGanancias = 0;
+
     data.financials.forEach(f => {
-      csv += `${f.name},${f.ingresos},${f.costos},${f.ganancia}\n`;
+      const margen = f.ingresos > 0 ? ((f.ganancia / f.ingresos) * 100).toFixed(1) : 0;
+      csv += `${f.name},"${f.ingresos.toLocaleString()}","${f.costos.toLocaleString()}","${f.ganancia.toLocaleString()}",${margen}%\n`;
+      totalIngresos += f.ingresos;
+      totalCostos += f.costos;
+      totalGanancias += f.ganancia;
     });
-    csv += '\n';
+    
+    // Fila de totales para finanzas
+    const margenTotal = totalIngresos > 0 ? ((totalGanancias / totalIngresos) * 100).toFixed(1) : 0;
+    csv += `TOTALES ACUMULADOS,"${totalIngresos.toLocaleString()}","${totalCostos.toLocaleString()}","${totalGanancias.toLocaleString()}",${margenTotal}%\n`;
+    csv += emptyRow;
+    csv += emptyRow;
 
-    // Sección: Top Productos
-    csv += 'TOP 5 PRODUCTOS DEL MES\n';
-    csv += 'Producto,Unidades Vendidas,Revenue ($)\n';
-    data.topProducts.forEach(p => {
-      csv += `${p.name},${p.sold},${p.revenue}\n`;
+    // ==========================================
+    // SECCIÓN 3: RENDIMIENTO DE PRODUCTOS
+    // ==========================================
+    csv += divider;
+    csv += 'SECCIÓN 3: TOP 5 PRODUCTOS DE MAYOR RENDIMIENTO,,,,,\n';
+    csv += divider;
+    csv += 'Ranking,Nombre del Producto,Unidades Vendidas,Ingresos Generados ($),Precio Promedio de Venta ($),\n';
+    data.topProducts.forEach((p, index) => {
+      const avgPrice = p.sold > 0 ? (p.revenue / p.sold).toFixed(2) : 0;
+      csv += `#${index + 1},${p.name},${p.sold},"${p.revenue.toLocaleString()}",${avgPrice}\n`;
     });
+    csv += emptyRow;
+    csv += emptyRow;
 
-    // Crear y descargar el archivo
+    // ==========================================
+    // SECCIÓN 4: AUDITORÍA Y SEGURIDAD IA
+    // ==========================================
+    csv += divider;
+    csv += 'SECCIÓN 4: REPORTE DE RETENCIÓN Y AUDITORÍA IA,,,,,\n';
+    csv += divider;
+    csv += 'Mes,Falsos Positivos,Alertas Verificadas,Alertas Pendientes,Total Incidentes,\n';
+    data.retention.forEach(r => {
+      const total = r.falsosPositivos + r.verificados + r.pendientes;
+      csv += `${r.name},${r.falsosPositivos},${r.verificados},${r.pendientes},${total}\n`;
+    });
+    csv += emptyRow;
+    
+    csv += '*** FIN DEL REPORTE ***,,,,,\n';
+
+    // Crear y descargar el archivo CSV
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
@@ -76,7 +127,7 @@ const Dashboard = () => {
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
 
-    setTimeout(() => showToast("Reporte descargado exitosamente"), 500);
+    setTimeout(() => showToast("Reporte detallado exportado a Excel con éxito"), 500);
   };
 
   if (loading) {
