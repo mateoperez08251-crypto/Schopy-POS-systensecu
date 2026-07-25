@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { Search, Clock, Receipt, Printer, Calendar as CalendarIcon, Download, Edit } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Search, Clock, Receipt, Printer, Calendar as CalendarIcon, Download, Edit, ShoppingCart } from 'lucide-react';
 
 interface SalesHistoryProps {
   salesHistory: any[];
@@ -17,6 +18,7 @@ const AnimatedCheckbox = ({ checked, onChange }: { checked: boolean, onChange: (
 );
 
 const SalesHistory: React.FC<SalesHistoryProps> = ({ salesHistory }) => {
+  const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState('');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
@@ -49,13 +51,14 @@ const SalesHistory: React.FC<SalesHistoryProps> = ({ salesHistory }) => {
           <h1 style={{ fontSize: '1.5rem', fontWeight: 800 }}>Historial de Ventas</h1>
           <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Consulta, edita y reimprime transacciones</p>
         </div>
-        <div style={{ display: 'flex', gap: '12px' }}>
+        <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+          <button className="btn btn-primary" onClick={() => navigate('/pos')} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <ShoppingCart size={18} /> Ir a Ventas (POS)
+          </button>
           {selectedIds.length > 0 && (
-            <>
-              <button className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'var(--accent-primary)' }}>
-                <Printer size={18} /> Imprimir ({selectedIds.length})
-              </button>
-            </>
+            <button className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'var(--accent-primary)' }}>
+              <Printer size={18} /> Imprimir ({selectedIds.length})
+            </button>
           )}
           <button className="btn btn-outline" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <Download size={18} /> Exportar

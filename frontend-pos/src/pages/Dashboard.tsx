@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   BarChart2, MoreHorizontal, ArrowUpRight, ArrowDownRight,
-  DownloadCloud, UploadCloud, SlidersHorizontal, Info, CheckCircle2,
+  SlidersHorizontal, Info, CheckCircle2,
   X
 } from 'lucide-react';
 import { 
@@ -18,8 +18,7 @@ const Dashboard = () => {
   // Estados para las interacciones
   const [timeFilter, setTimeFilter] = useState('1 A');
   const [toast, setToast] = useState<string | null>(null);
-  const [calendarMonth, setCalendarMonth] = useState(10); // Octubre es el 10
-  const months = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+
 
   const showToast = (message: string) => {
     setToast(message);
@@ -27,8 +26,57 @@ const Dashboard = () => {
   };
 
   const handleExport = () => {
-    showToast("Generando reporte PDF...");
-    setTimeout(() => showToast("Reporte descargado exitosamente: reporte_ventas_ia.pdf"), 1500);
+    showToast("Generando reporte...");
+
+    // Construir CSV con datos reales del dashboard
+    const now = new Date();
+    const fecha = now.toLocaleDateString('es-DO');
+    let csv = '\uFEFF'; // BOM para caracteres especiales en Excel
+
+    // Sección: Métricas Generales
+    csv += 'REPORTE DE VENTAS - SCHOPY POS\n';
+    csv += `Fecha de generación,${fecha}\n\n`;
+    csv += 'MÉTRICAS GENERALES\n';
+    csv += `Facturas Emitidas,${data.metrics.invoices}\n`;
+    csv += `Ticket Promedio,${data.metrics.avgTicket}\n`;
+    csv += `Ingresos Totales,${data.metrics.totalRevenue}\n`;
+    csv += `Ganancias Netas,${data.metrics.netProfit}\n\n`;
+
+    // Sección: Ingresos por Mes
+    csv += 'INGRESOS MENSUALES\n';
+    csv += 'Mes,Monto ($)\n';
+    data.revenue.forEach(r => {
+      csv += `${r.name},${r.uv}\n`;
+    });
+    csv += '\n';
+
+    // Sección: Comparativo Financiero
+    csv += 'COMPARATIVO FINANCIERO\n';
+    csv += 'Mes,Ingresos ($),Costos ($),Ganancia Neta ($)\n';
+    data.financials.forEach(f => {
+      csv += `${f.name},${f.ingresos},${f.costos},${f.ganancia}\n`;
+    });
+    csv += '\n';
+
+    // Sección: Top Productos
+    csv += 'TOP 5 PRODUCTOS DEL MES\n';
+    csv += 'Producto,Unidades Vendidas,Revenue ($)\n';
+    data.topProducts.forEach(p => {
+      csv += `${p.name},${p.sold},${p.revenue}\n`;
+    });
+
+    // Crear y descargar el archivo
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `reporte_schopy_${now.toISOString().split('T')[0]}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+
+    setTimeout(() => showToast("Reporte descargado exitosamente"), 500);
   };
 
   if (loading) {
@@ -79,7 +127,7 @@ const Dashboard = () => {
         </div>
         <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
           <button className="btn btn-outline" onClick={() => showToast("Abriendo configuración de widgets...")}><SlidersHorizontal size={16} /> Personalizar Widgets</button>
-          <button className="btn btn-outline" onClick={() => showToast("Buscando archivos para importar...")}><DownloadCloud size={16} /> Importar</button>
+
           
           {/* Animated Download Button */}
           <div className="container-dl">
@@ -111,8 +159,8 @@ const Dashboard = () => {
           {[
             { title: 'Facturas Emitidas', value: data.metrics.invoices, trend: '+12%', isPositive: true },
             { title: 'Ticket Promedio', value: data.metrics.avgTicket, trend: '-2%', isPositive: false },
-            { title: 'Alertas IA (Robos)', value: data.metrics.alerts, trend: '-8%', isPositive: true },
-            { title: 'Ingresos Totales', value: data.metrics.totalRevenue, trend: '+15%', isPositive: true }
+            { title: 'Ingresos Totales', value: data.metrics.totalRevenue, trend: '+15%', isPositive: true },
+            { title: 'Ganancias Netas', value: data.metrics.netProfit, trend: '+18%', isPositive: true }
           ].map((metric, i) => (
             <div key={i} className="card animate-item" style={{ padding: '20px', animationDelay: `${i * 0.1}s` }}>
               <div className="flex-between" style={{ marginBottom: '16px' }}>
@@ -181,50 +229,61 @@ const Dashboard = () => {
             </div>
           </div>
 
-          {/* Calendario de Tareas */}
+          {/* Comparativo Financiero */}
           <div className="card animate-item" style={{ padding: '24px', animationDelay: '0.5s' }}>
-            <div className="flex-between" style={{ marginBottom: '24px' }}>
-              <h3 style={{ fontSize: '1rem', fontWeight: 700 }}>Agenda del Día</h3>
-              <MoreHorizontal size={16} color="var(--text-muted)" style={{ cursor: 'pointer' }} onClick={() => showToast("Opciones de agenda")} />
-            </div>
-            <div style={{ textAlign: 'center', marginBottom: '16px' }}>
-              <div className="flex-between" style={{ marginBottom: '16px', padding: '0 12px' }}>
-                <span 
-                  style={{ color: 'var(--text-muted)', cursor: 'pointer', fontWeight: 'bold' }} 
-                  onClick={() => setCalendarMonth(prev => (prev === 0 ? 11 : prev - 1))}
-                >&lt;</span>
-                <span style={{ fontWeight: 600 }}>{months[calendarMonth]} 2026</span>
-                <span 
-                  style={{ color: 'var(--text-muted)', cursor: 'pointer', fontWeight: 'bold' }}
-                  onClick={() => setCalendarMonth(prev => (prev === 11 ? 0 : prev + 1))}
-                >&gt;</span>
+            <div className="flex-between" style={{ marginBottom: '16px' }}>
+              <div>
+                <h3 style={{ fontSize: '1rem', fontWeight: 700, marginBottom: '4px' }}>Comparativo Financiero</h3>
+                <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: 500 }}>Últimos 7 meses</span>
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '8px', fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '8px', fontWeight: 600 }}>
-                <span>Do</span><span>Lu</span><span>Ma</span><span>Mi</span><span>Ju</span><span>Vi</span><span>Sá</span>
-              </div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '8px', fontSize: '0.9rem', fontWeight: 500 }}>
-                <span>5</span><span>6</span><span>7</span><span style={{ background: 'var(--accent-primary)', color: 'white', borderRadius: '50%', width: '28px', height: '28px', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto', boxShadow: '0 4px 10px rgba(99,102,241,0.4)' }}>8</span><span>9</span><span>10</span><span>11</span>
-              </div>
-            </div>
-            <div style={{ marginTop: '24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              {[
-                { title: 'Revisión de Inventario', time: '9.00 am - 10.00 am', platform: 'Almacén Principal' },
-                { title: 'Auditoría de Cajas IA', time: '10.45 am - 11.45 am', platform: 'Panel de Control' }
-              ].map((event, i) => (
-                <div key={i} style={{ borderTop: '1px solid var(--border-light)', paddingTop: '16px', cursor: 'pointer' }} onClick={() => showToast(`Abriendo tarea: ${event.title}`)}>
-                  <div className="flex-between" style={{ marginBottom: '8px' }}>
-                    <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>{event.title}</span>
-                    <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{event.time}</span>
-                  </div>
-                  <div className="flex-between">
-                    <div style={{ display: 'flex' }}>
-                      <div style={{ width: '24px', height: '24px', borderRadius: '50%', background: '#ccc', border: '2px solid white' }}></div>
-                      <div style={{ width: '24px', height: '24px', borderRadius: '50%', background: '#bbb', border: '2px solid white', marginLeft: '-8px' }}></div>
-                    </div>
-                    <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 500 }}>{event.platform}</span>
-                  </div>
+              <div style={{ display: 'flex', gap: '16px', fontSize: '0.75rem', fontWeight: 500 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <div style={{ width: '10px', height: '10px', borderRadius: '3px', background: '#6366F1' }}></div>
+                  <span style={{ color: 'var(--text-secondary)' }}>Ingresos</span>
                 </div>
-              ))}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <div style={{ width: '10px', height: '10px', borderRadius: '3px', background: '#E0E7FF' }}></div>
+                  <span style={{ color: 'var(--text-secondary)' }}>Costos</span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <div style={{ width: '10px', height: '10px', borderRadius: '3px', background: '#10B981' }}></div>
+                  <span style={{ color: 'var(--text-secondary)' }}>Ganancia</span>
+                </div>
+              </div>
+            </div>
+            <div style={{ height: '200px', width: '100%' }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={data.financials} barGap={2} barCategoryGap="20%">
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border-light)" />
+                  <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: 'var(--text-muted)', fontWeight: 500 }} />
+                  <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: 'var(--text-muted)' }} tickFormatter={(v) => `${Math.round(v/1000)}k`} />
+                  <RechartsTooltip 
+                    cursor={{ fill: 'var(--bg-app)' }} 
+                    formatter={(value: number) => [`$${value.toLocaleString()}`, '']}
+                    contentStyle={{ background: 'var(--bg-card)', border: '1px solid var(--border-medium)', borderRadius: '8px', fontSize: '0.85rem' }}
+                  />
+                  <Bar dataKey="ingresos" fill="#6366F1" radius={[4, 4, 0, 0]} name="Ingresos" />
+                  <Bar dataKey="costos" fill="#E0E7FF" radius={[4, 4, 0, 0]} name="Costos" />
+                  <Bar dataKey="ganancia" fill="#10B981" radius={[4, 4, 0, 0]} name="Ganancia" />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+
+            {/* Top Productos del Mes */}
+            <div style={{ marginTop: '20px', borderTop: '1px solid var(--border-light)', paddingTop: '16px' }}>
+              <h4 style={{ fontSize: '0.85rem', fontWeight: 700, marginBottom: '12px', color: 'var(--text-secondary)' }}>Top 5 Productos del Mes</h4>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                {data.topProducts.map((product, i) => (
+                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <span style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-muted)', width: '18px' }}>{i + 1}</span>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: '0.85rem', fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{product.name}</div>
+                    </div>
+                    <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', fontWeight: 500, whiteSpace: 'nowrap' }}>{product.sold} uds</span>
+                    <span style={{ fontSize: '0.8rem', color: '#10B981', fontWeight: 700, whiteSpace: 'nowrap' }}>${product.revenue.toFixed(0)}</span>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         </div>

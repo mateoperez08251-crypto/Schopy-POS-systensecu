@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import './index.css';
 
@@ -10,6 +10,7 @@ import TopNav from './components/TopNav';
 // Páginas
 import Dashboard from './pages/Dashboard';
 import POS from './pages/POS';
+import VoucherPOS from './pages/VoucherPOS';
 import Inventory from './pages/Inventory';
 import Audit from './pages/Audit';
 import SalesHistory from './pages/SalesHistory';
@@ -33,6 +34,7 @@ function App() {
           <Routes>
             <Route path="/" element={<Dashboard />} />
             <Route path="/pos" element={<POS salesHistory={salesHistory} setSalesHistory={setSalesHistory} />} />
+            <Route path="/voucher-pos" element={<VoucherPOS salesHistory={salesHistory} setSalesHistory={setSalesHistory} />} />
             <Route path="/sales-history" element={<SalesHistory salesHistory={salesHistory} />} />
             <Route path="/inventory" element={<Inventory />} />
             <Route path="/audit" element={<Audit />} />

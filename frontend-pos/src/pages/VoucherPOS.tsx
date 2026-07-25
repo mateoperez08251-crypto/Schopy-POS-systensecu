@@ -1,21 +1,21 @@
 import React from 'react';
 import POSInterface from '../components/POSInterface';
 
-interface POSProps {
+interface VoucherPOSProps {
   salesHistory: any[];
   setSalesHistory: (val: any[]) => void;
 }
 
-const POS: React.FC<POSProps> = ({ salesHistory, setSalesHistory }) => {
+const VoucherPOS: React.FC<VoucherPOSProps> = ({ salesHistory, setSalesHistory }) => {
   return (
     <div style={{ height: '100%', position: 'relative' }}>
       <POSInterface 
         salesHistory={salesHistory} 
         setSalesHistory={setSalesHistory} 
-        isVoucherMode={false} 
+        isVoucherMode={true} 
       />
     </div>
   );
 };
 
-export default POS;
+export default VoucherPOS;

@@ -17,6 +17,7 @@ const Sidebar = () => {
       path: '/pos',
       subItems: [
         { label: 'Punto de Venta', path: '/pos' },
+        { label: 'Venta con Comprobante', path: '/voucher-pos' },
         { label: 'Historial', path: '/sales-history' }
       ]
     },
@@ -105,7 +106,10 @@ const Sidebar = () => {
                 className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
                 style={{ textDecoration: 'none', justifyContent: isCollapsed ? 'center' : 'flex-start' }}
                 title={isCollapsed ? item.label : undefined}
-                onClick={() => setExpandedMenu(null)}
+                onClick={() => {
+                  setExpandedMenu(null);
+                  setIsCollapsed(true);
+                }}
               >
                 <item.icon size={18} style={{ flexShrink: 0 }} />
                 {!isCollapsed && <span style={{ whiteSpace: 'nowrap' }}>{item.label}</span>}
@@ -118,9 +122,10 @@ const Sidebar = () => {
                 {item.subItems.map(sub => (
                   <NavLink
                     key={sub.label}
-                    to={sub.path}
+                    to={sub.path!}
                     className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
                     style={{ textDecoration: 'none', padding: '8px 12px', fontSize: '0.85rem' }}
+                    onClick={() => setIsCollapsed(true)}
                   >
                     {sub.label}
                   </NavLink>

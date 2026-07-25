@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { LayoutDashboard, Search, Bell, Mail, Share2, ShieldAlert, CheckCircle2, AlertTriangle, BellOff } from 'lucide-react';
+import { useLocation } from 'react-router-dom';
+import { LayoutDashboard, Search, Bell, Mail, Share2, ShieldAlert, CheckCircle2, AlertTriangle, BellOff, ShoppingCart, FileText, History, Package } from 'lucide-react';
 
 const initialNotifications = [
   {
@@ -28,11 +29,12 @@ const initialNotifications = [
   }
 ];
 
-const TopNav = ({ title = "Panel de Control" }: { title?: string }) => {
+const TopNav = ({ title = "" }: { title?: string }) => {
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const [notifications, setNotifications] = useState(initialNotifications);
   const notifRef = useRef<HTMLDivElement>(null);
+  const location = useLocation();
 
   useEffect(() => {
     // Revisar si ya está en modo oscuro
@@ -55,11 +57,53 @@ const TopNav = ({ title = "Panel de Control" }: { title?: string }) => {
     document.body.classList.toggle('dark-mode');
   };
 
+  // Determinar ícono y título dinámico según la ruta
+  let currentTitle = title;
+  let CurrentIcon = LayoutDashboard;
+
+  switch (location.pathname) {
+    case '/':
+      currentTitle = 'Panel de Control';
+      CurrentIcon = LayoutDashboard;
+      break;
+    case '/pos':
+      currentTitle = 'Punto de Venta';
+      CurrentIcon = ShoppingCart;
+      break;
+    case '/voucher-pos':
+      currentTitle = 'Venta con Comprobante';
+      CurrentIcon = FileText;
+      break;
+    case '/sales-history':
+      currentTitle = 'Historial de Ventas';
+      CurrentIcon = History;
+      break;
+    case '/inventory':
+      currentTitle = 'Inventario';
+      CurrentIcon = Package;
+      break;
+    case '/audit':
+      currentTitle = 'Auditoría';
+      CurrentIcon = ShieldAlert;
+      break;
+    default:
+      currentTitle = title || 'Schopy POS';
+      CurrentIcon = LayoutDashboard;
+  }
+
+  // Si estamos en POS o Voucher, podemos decidir ocultar el título superior ya que el componente tiene el suyo propio
+  // O podemos mantenerlo. Mantengámoslo para consistencia de la UI.
+  if (location.pathname === '/pos' || location.pathname === '/voucher-pos' || location.pathname === '/inventory') {
+    // El POS y el Inventory tienen su propio encabezado grande H1, por lo que este pequeño del TopNav puede ser redundante.
+    // Sin embargo, si queremos mantener el layout exacto, podemos dejarlo o borrarlo.
+    // Dejaremos el ícono y título para consistencia en la esquina superior izquierda.
+  }
+
   return (
     <header className="flex-between" style={{ marginBottom: '32px' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-        <LayoutDashboard size={24} color="var(--accent-primary)" />
-        <h1 style={{ fontSize: '1.5rem', fontWeight: 600 }}>{title}</h1>
+        <CurrentIcon size={24} color="var(--accent-primary)" />
+        <h1 style={{ fontSize: '1.5rem', fontWeight: 600 }}>{currentTitle}</h1>
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
         <div style={{ position: 'relative', width: '260px' }}>
