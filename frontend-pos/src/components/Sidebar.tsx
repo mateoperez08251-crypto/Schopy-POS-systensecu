@@ -152,9 +152,21 @@ const Sidebar = () => {
               ACCESOS RÁPIDOS
               <MoreHorizontal size={14} />
             </div>
-            <div className="nav-item"><div style={{width:'8px',height:'8px',borderRadius:'50%',border:'2px solid var(--text-muted)', flexShrink: 0}}></div> Proveedores <span style={{marginLeft:'auto',fontSize:'0.75rem',color:'var(--text-muted)'}}>122</span></div>
-            <div className="nav-item"><div style={{width:'8px',height:'8px',borderRadius:'50%',border:'2px solid var(--text-muted)', flexShrink: 0}}></div> Clientes Frecuentes <span style={{marginLeft:'auto',fontSize:'0.75rem',color:'var(--text-muted)'}}>89</span></div>
-            <div className="nav-item"><div style={{width:'8px',height:'8px',borderRadius:'50%',border:'2px solid var(--text-muted)', flexShrink: 0}}></div> Cortes de Caja <span style={{marginLeft:'auto',fontSize:'0.75rem',color:'var(--text-muted)'}}>32</span></div>
+            <NavLink to="/suppliers" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} style={{ textDecoration: 'none' }} onClick={() => { setExpandedMenu(null); setIsCollapsed(true); }}>
+              <div style={{width:'8px',height:'8px',borderRadius:'50%',border:'2px solid var(--text-muted)', flexShrink: 0}}></div> 
+              Proveedores 
+              <span style={{marginLeft:'auto',fontSize:'0.75rem',color:'var(--text-muted)'}}>122</span>
+            </NavLink>
+            <NavLink to="/customers" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} style={{ textDecoration: 'none' }} onClick={() => { setExpandedMenu(null); setIsCollapsed(true); }}>
+              <div style={{width:'8px',height:'8px',borderRadius:'50%',border:'2px solid var(--text-muted)', flexShrink: 0}}></div> 
+              Clientes Frecuentes 
+              <span style={{marginLeft:'auto',fontSize:'0.75rem',color:'var(--text-muted)'}}>89</span>
+            </NavLink>
+            <NavLink to="/reports" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} style={{ textDecoration: 'none' }} onClick={() => { setExpandedMenu(null); setIsCollapsed(true); }}>
+              <div style={{width:'8px',height:'8px',borderRadius:'50%',border:'2px solid var(--text-muted)', flexShrink: 0}}></div> 
+              Cortes de Caja 
+              <span style={{marginLeft:'auto',fontSize:'0.75rem',color:'var(--text-muted)'}}>32</span>
+            </NavLink>
           </>
         )}
       </nav>
