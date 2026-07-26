@@ -7,7 +7,7 @@
   background-color: var(--bg-app);
 }
 
-.card {
+.login-page-wrapper .card {
   --p: 32px;
   --h-form: auto;
   --w-form: 380px;
@@ -38,7 +38,7 @@
   box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
 }
 
-.avatar {
+.login-page-wrapper .avatar {
   --sz-avatar: 166px;
   order: 0;
   width: var(--sz-avatar);
@@ -63,7 +63,7 @@
   /* added to give monkey face color */
 }
 
-.avatar svg {
+.login-page-wrapper .avatar svg {
   position: absolute;
   transition:
     transform 0.2s ease-in,
@@ -74,17 +74,17 @@
   pointer-events: none;
 }
 
-.avatar svg#monkey {
+.login-page-wrapper .avatar svg#monkey {
   z-index: 1;
 }
 
-.avatar svg#monkey-hands {
+.login-page-wrapper .avatar svg#monkey-hands {
   z-index: 2;
   transform-style: preserve-3d;
   transform: translateY(calc(var(--sz-avatar) / 1.25)) rotateX(-21deg);
 }
 
-.avatar::before {
+.login-page-wrapper .avatar::before {
   content: "";
   border-radius: 45%;
   width: calc(var(--sz-svg) / 3.889);
@@ -97,15 +97,15 @@
   z-index: 3;
 }
 
-.blind-check:checked~.avatar::before {
+.login-page-wrapper .blind-check:checked~.avatar::before {
   width: calc(var(--sz-svg) * (9 / 100));
   height: 0;
   border-radius: 50%;
   border-bottom: calc(var(--sz-svg) * (10 / 100)) solid #3c302a;
 }
 
-.avatar svg#monkey .monkey-eye-r,
-.avatar svg#monkey .monkey-eye-l {
+.login-page-wrapper .avatar svg#monkey .monkey-eye-r, 
+.login-page-wrapper .avatar svg#monkey .monkey-eye-l {
   animation: blink 10s 1s infinite;
   transition: all 0.2s ease;
 }
@@ -133,43 +133,43 @@
   }
 }
 
-.blind-check:checked~.avatar svg#monkey .monkey-eye-r,
-.blind-check:checked~.avatar svg#monkey .monkey-eye-l {
+.login-page-wrapper .blind-check:checked~.avatar svg#monkey .monkey-eye-r, 
+.login-page-wrapper .blind-check:checked~.avatar svg#monkey .monkey-eye-l {
   ry: 0.5;
   cy: 30;
 }
 
-.blind-check:checked~.avatar svg#monkey-hands {
+.login-page-wrapper .blind-check:checked~.avatar svg#monkey-hands {
   transform: translate3d(0, 0, 0) rotateX(0deg);
 }
 
-.avatar svg#monkey,
-.avatar::before,
-.avatar svg#monkey .monkey-eye-nose,
-.avatar svg#monkey .monkey-eye-r,
-.avatar svg#monkey .monkey-eye-l {
+.login-page-wrapper .avatar svg#monkey, 
+.login-page-wrapper .avatar::before, 
+.login-page-wrapper .avatar svg#monkey .monkey-eye-nose, 
+.login-page-wrapper .avatar svg#monkey .monkey-eye-r, 
+.login-page-wrapper .avatar svg#monkey .monkey-eye-l {
   transition: all 0.2s ease;
 }
 
-.blind-check:checked~.form:focus-within~.avatar svg#monkey,
-.blind-check:checked~.form:focus-within~.avatar::before,
-.blind-check:checked~.form:focus-within~.avatar svg#monkey .monkey-eye-nose,
-.blind-check:checked~.form:focus-within~.avatar svg#monkey .monkey-eye-r,
-.blind-check:checked~.form:focus-within~.avatar svg#monkey .monkey-eye-l {
+.login-page-wrapper .blind-check:checked~.form:focus-within~.avatar svg#monkey, 
+.login-page-wrapper .blind-check:checked~.form:focus-within~.avatar::before, 
+.login-page-wrapper .blind-check:checked~.form:focus-within~.avatar svg#monkey .monkey-eye-nose, 
+.login-page-wrapper .blind-check:checked~.form:focus-within~.avatar svg#monkey .monkey-eye-r, 
+.login-page-wrapper .blind-check:checked~.form:focus-within~.avatar svg#monkey .monkey-eye-l {
   animation: none;
 }
 
-.form:focus-within~.avatar svg#monkey {
+.login-page-wrapper .form:focus-within~.avatar svg#monkey {
   animation: slick 3s ease infinite 1s;
   --center: rotateY(0deg);
   --left: rotateY(-4deg);
   --right: rotateY(4deg);
 }
 
-.form:focus-within~.avatar::before,
-.form:focus-within~.avatar svg#monkey .monkey-eye-nose,
-.blind-check:not(:checked)~.form:focus-within~.avatar svg#monkey .monkey-eye-r,
-.blind-check:not(:checked)~.form:focus-within~.avatar svg#monkey .monkey-eye-l {
+.login-page-wrapper .form:focus-within~.avatar::before, 
+.login-page-wrapper .form:focus-within~.avatar svg#monkey .monkey-eye-nose, 
+.login-page-wrapper .blind-check:not(:checked)~.form:focus-within~.avatar svg#monkey .monkey-eye-r, 
+.login-page-wrapper .blind-check:not(:checked)~.form:focus-within~.avatar svg#monkey .monkey-eye-l {
   ry: 3;
   cy: 35;
   animation: slick 3s ease infinite 1s;
@@ -194,12 +194,12 @@
   }
 }
 
-.form .password-wrapper {
+.login-page-wrapper .form .password-wrapper {
   position: relative;
   width: 100%;
 }
 
-.card label.blind_input {
+.login-page-wrapper .card label.blind_input {
   -webkit-user-select: none;
   user-select: none;
   cursor: pointer;
@@ -219,7 +219,7 @@
   justify-content: center;
 }
 
-.card label.blind_input:before {
+.login-page-wrapper .card label.blind_input:before {
   content: "";
   position: absolute;
   left: calc((var(--input-px) / 2) * -1);
@@ -229,22 +229,22 @@
   background: #8f8f8f;
 }
 
-.card label.blind_input:hover {
+.login-page-wrapper .card label.blind_input:hover {
   color: #262626;
   background-color: #f2f2f2;
 }
 
-.blind-check~.form label.blind_input span.show,
-.blind-check:checked~.form label.blind_input span.hide {
+.login-page-wrapper .blind-check~.form label.blind_input span.show, 
+.login-page-wrapper .blind-check:checked~.form label.blind_input span.hide {
   display: none;
 }
 
-.blind-check~.form label.blind_input span.hide,
-.blind-check:checked~.form label.blind_input span.show {
+.login-page-wrapper .blind-check~.form label.blind_input span.hide, 
+.login-page-wrapper .blind-check:checked~.form label.blind_input span.show {
   display: block;
 }
 
-.form {
+.login-page-wrapper .form {
   order: 1;
   position: relative;
   display: flex;
@@ -254,7 +254,7 @@
   width: 100%;
 }
 
-.form .title {
+.login-page-wrapper .form .title {
   width: 100%;
   font-size: 1.5rem;
   font-weight: 600;
@@ -266,7 +266,7 @@
   border-bottom: 2px solid rgba(0, 0, 0, 0.3);
 }
 
-.form .label_input {
+.login-page-wrapper .form .label_input {
   white-space: nowrap;
   font-size: 1rem;
   margin-top: calc(var(--space-y) / 2);
@@ -281,7 +281,7 @@
   user-select: none;
 }
 
-.form .input {
+.login-page-wrapper .form .input {
   resize: vertical;
   background: white;
   border: 1px solid #8f8f8f;
@@ -295,23 +295,23 @@
   transition: all 0.25s ease;
 }
 
-.form .input#password-input {
+.login-page-wrapper .form .input#password-input {
   padding-right: calc(var(--blind-w) + var(--input-px) + 4px);
 }
 
-.form .input:focus {
+.login-page-wrapper .form .input:focus {
   border: 1px solid #0969da;
   outline: 0;
   box-shadow: 0 0 0 2px #0969da;
 }
 
-.form .frg_pss {
+.login-page-wrapper .form .frg_pss {
   width: 100%;
   display: inline-flex;
   align-items: center;
 }
 
-.form .frg_pss a {
+.login-page-wrapper .form .frg_pss a {
   background-color: transparent;
   cursor: pointer;
   text-decoration: underline;
@@ -321,11 +321,11 @@
   float: right;
 }
 
-.form .frg_pss a:hover {
+.login-page-wrapper .form .frg_pss a:hover {
   color: #000;
 }
 
-.form .submit {
+.login-page-wrapper .form .submit {
   height: var(--submit-h);
   width: 100%;
   outline: none;
@@ -351,7 +351,7 @@
   margin: var(--space-y) 0 0;
 }
 
-.form .submit:hover {
+.login-page-wrapper .form .submit:hover {
   background-image: linear-gradient(-180deg,
       rgba(255, 255, 255, 0.18) 0%,
       rgba(17, 17, 17, 0.08) 100%);
@@ -359,7 +359,7 @@
   color: #111;
 }
 
-.social-buttons {
+.login-page-wrapper .social-buttons {
   display: flex;
   gap: 1rem;
   justify-content: center;
@@ -367,7 +367,7 @@
   width: 100%;
 }
 
-.social-btn {
+.login-page-wrapper .social-btn {
   position: relative;
   overflow: hidden;
   padding: 0.75rem;
@@ -382,7 +382,7 @@
   justify-content: center;
 }
 
-.social-btn svg {
+.login-page-wrapper .social-btn svg {
   width: 1.25rem;
   height: 1.25rem;
   fill: currentColor;
@@ -392,7 +392,7 @@
 }
 
 /* Base effect overlay (the shine) */
-.social-btn::before {
+.login-page-wrapper .social-btn::before {
   content: "";
   position: absolute;
   top: 0; right: 0; bottom: 0; left: 0;
@@ -402,56 +402,56 @@
   z-index: 1;
 }
 
-.social-btn:hover::before {
+.login-page-wrapper .social-btn:hover::before {
   transform: translateX(100%);
 }
 
-.social-btn:active {
+.login-page-wrapper .social-btn:active {
   transform: scale(0.95) rotate(0deg) !important;
 }
 
 /* Facebook (Blue) */
-.social-btn.fb {
+.login-page-wrapper .social-btn.fb {
   color: #1877F2;
 }
-.social-btn.fb:hover {
+.login-page-wrapper .social-btn.fb:hover {
   border-color: rgba(24, 119, 242, 0.5);
   background: rgba(24, 119, 242, 0.05);
   box-shadow: 0 10px 15px -3px rgba(24, 119, 242, 0.2);
   transform: scale(1.1) rotate(-3deg);
 }
-.social-btn.fb::before {
+.login-page-wrapper .social-btn.fb::before {
   background: linear-gradient(to right, transparent, rgba(24, 119, 242, 0.2), transparent);
 }
 
 /* Instagram (Pink/Purple) */
-.social-btn.ig {
+.login-page-wrapper .social-btn.ig {
   color: #E1306C;
 }
-.social-btn.ig:hover {
+.login-page-wrapper .social-btn.ig:hover {
   border-color: rgba(225, 48, 108, 0.5);
   background: rgba(225, 48, 108, 0.05);
   box-shadow: 0 10px 15px -3px rgba(225, 48, 108, 0.2);
   transform: scale(1.1) rotate(3deg);
 }
-.social-btn.ig::before {
+.login-page-wrapper .social-btn.ig::before {
   background: linear-gradient(to right, transparent, rgba(225, 48, 108, 0.2), transparent);
 }
 
 /* WhatsApp (Green) */
-.social-btn.wa {
+.login-page-wrapper .social-btn.wa {
   color: #25D366;
 }
-.social-btn.wa:hover {
+.login-page-wrapper .social-btn.wa:hover {
   border-color: rgba(37, 211, 102, 0.5);
   background: rgba(37, 211, 102, 0.05);
   box-shadow: 0 10px 15px -3px rgba(37, 211, 102, 0.2);
   transform: scale(1.1) rotate(2deg);
 }
-.social-btn.wa::before {
+.login-page-wrapper .social-btn.wa::before {
   background: linear-gradient(to right, transparent, rgba(37, 211, 102, 0.2), transparent);
 }
 
-.blind-check:checked~.form .input[type="text"] {
+.login-page-wrapper .blind-check:checked~.form .input[type="text"] {
   -webkit-text-security: disc;
 }
