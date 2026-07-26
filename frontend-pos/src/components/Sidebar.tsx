@@ -32,9 +32,9 @@ const Sidebar = () => {
       ]
     },
     { icon: Users, label: 'Clientes', path: '/customers' },
+    { icon: ShieldAlert, label: 'Personal (Cajeros)', path: '/staff' },
     { icon: ShieldAlert, label: 'Auditoría IA', path: '/audit' },
-    { icon: BarChart2, label: 'Reportes', path: '/reports' },
-    { icon: CalendarIcon, label: 'Calendario', path: '/calendar' }
+    { icon: BarChart2, label: 'Reportes', path: '/reports' }
   ];
 
   const [expandedMenu, setExpandedMenu] = useState<string | null>('Ventas');

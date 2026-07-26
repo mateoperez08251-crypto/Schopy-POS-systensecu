@@ -4,8 +4,11 @@ import { Search, Plus, Calendar, Filter, Truck, Edit, Trash2, ChevronDown, Alert
 import Fuse from 'fuse.js';
 import ProductFormModal from '../components/inventory/ProductFormModal';
 import ConfirmDeleteModal from '../components/inventory/ConfirmDeleteModal';
+import { useAuth } from '../context/AuthContext';
+import { addInventoryItem, updateInventoryItem, deleteInventoryItem } from '../firebase/inventoryService';
 
 const Inventory = ({ inventory, setInventory, showToast }: { inventory: any[], setInventory: (inv: any[]) => void, showToast?: (m: string, t?: 'success'|'error') => void }) => {
+  const { userData } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
   const [supplierTerm, setSupplierTerm] = useState('');
   const [dateFilter, setDateFilter] = useState('');
@@ -31,22 +34,23 @@ const Inventory = ({ inventory, setInventory, showToast }: { inventory: any[], s
     setIsModalOpen(true);
   };
 
-  const handleSaveProduct = (productData: any) => {
-    if (productData.id) {
-      // Editar
-      setInventory(inventory.map(p => p.id === productData.id ? productData : p));
-      if (showToast) showToast('Producto actualizado correctamente', 'success');
-    } else {
-      // Nuevo
-      const newProduct = {
-        ...productData,
-        id: Date.now(),
-        dateAdded: new Date().toISOString().split('T')[0]
-      };
-      setInventory([newProduct, ...inventory]);
-      if (showToast) showToast('Producto agregado exitosamente al inventario', 'success');
+  const handleSaveProduct = async (productData: any) => {
+    if (!userData?.companyId) return;
+
+    try {
+      if (productData.id) {
+        // Editar
+        await updateInventoryItem(productData.id, productData);
+        if (showToast) showToast('Producto actualizado correctamente', 'success');
+      } else {
+        // Nuevo
+        await addInventoryItem(userData.companyId, productData);
+        if (showToast) showToast('Producto agregado exitosamente al inventario', 'success');
+      }
+      setIsModalOpen(false);
+    } catch (error) {
+      if (showToast) showToast('Error al guardar el producto', 'error');
     }
-    setIsModalOpen(false);
   };
 
   const handleDeleteRequest = (product: any) => {
@@ -54,9 +58,14 @@ const Inventory = ({ inventory, setInventory, showToast }: { inventory: any[], s
     setIsDeleteModalOpen(true);
   };
 
-  const handleConfirmDelete = () => {
-    if (productToDelete) {
-      setInventory(inventory.filter(p => p.id !== productToDelete.id));
+  const handleConfirmDelete = async () => {
+    if (productToDelete?.id) {
+      try {
+        await deleteInventoryItem(productToDelete.id);
+        if (showToast) showToast('Producto eliminado', 'success');
+      } catch (error) {
+        if (showToast) showToast('Error al eliminar', 'error');
+      }
     }
     setIsDeleteModalOpen(false);
     setProductToDelete(null);

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
-import { LayoutDashboard, Search, Bell, Mail, Share2, ShieldAlert, CheckCircle2, AlertTriangle, BellOff, ShoppingCart, FileText, History, Package } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
+import { LayoutDashboard, Search, Bell, Mail, Share2, ShieldAlert, CheckCircle2, AlertTriangle, BellOff, ShoppingCart, FileText, History, Package, X } from 'lucide-react';
 
 const initialNotifications = [
   {
@@ -35,10 +36,14 @@ let hasPlayedNotificationDing = false;
 const TopNav = ({ title = "" }: { title?: string }) => {
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
+  const [showMails, setShowMails] = useState(false);
   const [showPopupNotification, setShowPopupNotification] = useState(false);
+  const [showSubscriptionWarning, setShowSubscriptionWarning] = useState(false);
   const [notifications, setNotifications] = useState(initialNotifications);
   const notifRef = useRef<HTMLDivElement>(null);
+  const mailRef = useRef<HTMLDivElement>(null);
   const location = useLocation();
+  const { daysRemaining } = useAuth();
 
   const playDing = () => {
     try {
@@ -83,15 +88,25 @@ const TopNav = ({ title = "" }: { title?: string }) => {
   }, []);
 
   useEffect(() => {
+    if (daysRemaining !== null && daysRemaining <= 3 && daysRemaining >= -3) {
+      // Show warning modal on initial load if within 3 days before OR 3 days after (grace period)
+      setShowSubscriptionWarning(true);
+    }
+  }, [daysRemaining]);
+
+  useEffect(() => {
     // Revisar si ya está en modo oscuro
     if (document.body.classList.contains('dark-mode')) {
       setIsDarkMode(true);
     }
 
-    // Cerrar notificaciones al hacer clic fuera
+    // Cerrar notificaciones y correos al hacer clic fuera
     const handleClickOutside = (event: MouseEvent) => {
       if (notifRef.current && !notifRef.current.contains(event.target as Node)) {
         setShowNotifications(false);
+      }
+      if (mailRef.current && !mailRef.current.contains(event.target as Node)) {
+        setShowMails(false);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -266,14 +281,117 @@ const TopNav = ({ title = "" }: { title?: string }) => {
             )}
           </div>
 
-          <div style={{ padding: '8px', borderRadius: '50%', border: '1px solid var(--border-medium)', background: 'var(--bg-card)', cursor: 'pointer' }}>
-            <Mail size={18} color="var(--text-secondary)" />
+          {/* Menú de Correos */}
+          <div style={{ position: 'relative' }} ref={mailRef}>
+            <div 
+              className="bell-button"
+              onClick={() => setShowMails(!showMails)}
+              style={{ padding: '8px', borderRadius: '50%', border: '1px solid var(--border-medium)', background: 'var(--bg-card)', position: 'relative', cursor: 'pointer' }}
+              title="Bandeja de Entrada"
+            >
+              <Mail className="bell-icon" size={18} color="var(--text-secondary)" />
+              {daysRemaining !== null && daysRemaining <= 3 && daysRemaining >= -3 && (
+                <div style={{ position: 'absolute', top: -2, right: -2, width: 8, height: 8, background: 'var(--accent-danger)', borderRadius: '50%' }}></div>
+              )}
+            </div>
+
+            {showMails && (
+              <div style={{ position: 'absolute', top: '44px', right: 0, width: '340px', background: 'var(--bg-card)', border: '1px solid var(--border-medium)', borderRadius: '12px', boxShadow: 'var(--shadow-lg)', zIndex: 100, animation: 'popIn 0.2s ease-out' }}>
+                <div style={{ padding: '16px', borderBottom: '1px solid var(--border-light)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <h4 style={{ fontWeight: 600, fontSize: '0.95rem' }}>Bandeja de Entrada</h4>
+                </div>
+                <div style={{ maxHeight: '300px', overflowY: 'auto' }}>
+                  {daysRemaining !== null && daysRemaining <= 3 && daysRemaining >= -3 ? (
+                    <div 
+                      onClick={() => {
+                        setShowMails(false);
+                        setShowSubscriptionWarning(true);
+                      }}
+                      style={{ padding: '16px', borderBottom: '1px solid var(--border-light)', display: 'flex', gap: '12px', cursor: 'pointer', background: 'var(--accent-danger-light)' }}
+                    >
+                      <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'var(--accent-danger)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                        <Mail size={16} />
+                      </div>
+                      <div>
+                        <p style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--accent-danger)', marginBottom: '4px' }}>Aviso del Sistema</p>
+                        <p style={{ fontSize: '0.75rem', color: 'var(--text-primary)' }}>Tienes un mensaje importante sobre tu suscripción.</p>
+                        <span style={{ fontSize: '0.7rem', color: 'var(--accent-danger)', fontWeight: 600 }}>Hace un momento</span>
+                      </div>
+                    </div>
+                  ) : (
+                    <div style={{ padding: '40px 20px', textAlign: 'center', color: 'var(--text-muted)' }}>
+                      <Mail size={32} style={{ margin: '0 auto', marginBottom: '12px', opacity: 0.5 }} />
+                      <p style={{ fontSize: '0.85rem', fontWeight: 500 }}>No hay correos nuevos</p>
+                    </div>
+                  )}
+                </div>
+                <div style={{ padding: '12px', borderTop: '1px solid var(--border-light)', textAlign: 'center', fontSize: '0.8rem', color: 'var(--text-secondary)', cursor: 'pointer', fontWeight: 600 }}>
+                  Ver todos los mensajes
+                </div>
+              </div>
+            )}
           </div>
+
           <div style={{ padding: '8px', borderRadius: '50%', border: '1px solid var(--border-medium)', background: 'var(--bg-card)', cursor: 'pointer' }}>
             <Share2 size={18} color="var(--text-secondary)" />
           </div>
         </div>
       </div>
+
+      {/* Subscription Warning Modal */}
+      {showSubscriptionWarning && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          zIndex: 9999
+        }}>
+          <div style={{
+            background: 'var(--bg-card)', width: '90%', maxWidth: '400px',
+            borderRadius: '16px', padding: '32px', position: 'relative',
+            border: '1px solid var(--accent-danger)', boxShadow: '0 20px 40px rgba(0,0,0,0.5)',
+            textAlign: 'center', animation: 'popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)'
+          }}>
+            <button 
+              onClick={() => setShowSubscriptionWarning(false)}
+              style={{ position: 'absolute', top: '16px', right: '16px', background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}
+            >
+              <X size={20} />
+            </button>
+            <AlertTriangle size={56} color="var(--accent-danger)" style={{ margin: '0 auto 16px' }} />
+            <h2 style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--accent-danger)', marginBottom: '12px' }}>
+              ¡Aviso Importante!
+            </h2>
+            <p style={{ color: 'var(--text-primary)', fontSize: '0.95rem', lineHeight: '1.5', marginBottom: '24px' }}>
+              {daysRemaining !== null && daysRemaining > 0 ? (
+                <>
+                  Tu suscripción al sistema vencerá en <strong>{daysRemaining} días</strong>. 
+                  Para evitar interrupciones en tu servicio, por favor contacta a soporte o al administrador para renovar a tiempo.
+                </>
+              ) : daysRemaining === 0 || daysRemaining === null ? (
+                <>
+                  <strong style={{color: 'var(--accent-danger)'}}>¡Advertencia!</strong> Tu suscripción vence el día de hoy. 
+                  Pronto caducará definitivamente. Para evitar el corte de tu servicio, por favor pagar tu renovación inmediatamente.
+                </>
+              ) : (
+                <>
+                  Tu suscripción al sistema ha vencido. Te hemos otorgado un período de gracia de <strong>{3 + (daysRemaining || 0)} días</strong>. 
+                  Para evitar el bloqueo total de tu cuenta, por favor contacta a soporte o al administrador urgentemente.
+                </>
+              )}
+            </p>
+            <button 
+              onClick={() => setShowSubscriptionWarning(false)}
+              style={{
+                background: 'var(--accent-danger)', color: 'white', border: 'none',
+                padding: '12px 24px', borderRadius: '8px', fontWeight: 600, cursor: 'pointer', width: '100%'
+              }}
+            >
+              Entendido
+            </button>
+          </div>
+        </div>
+      )}
     </header>
   );
 };

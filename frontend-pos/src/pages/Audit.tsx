@@ -56,6 +56,7 @@ const Audit = () => {
   const [incidents, setIncidents] = useState(INITIAL_INCIDENTS);
   const [searchTerm, setSearchTerm] = useState("");
   const [filter, setFilter] = useState("Todos");
+  const [showFilters, setShowFilters] = useState(false);
   const [selectedIncident, setSelectedIncident] = useState<any | null>(null);
 
   const pendingCount = incidents.filter(i => i.status === "Pendiente").length;
@@ -75,7 +76,6 @@ const Audit = () => {
 
   return (
     <main className="main-content">
-      <TopNav title="Auditoría IA" />
       
       <div style={{ maxWidth: '1200px', margin: '0 auto', width: '100%', padding: '0 24px' }}>
         <div style={{ marginBottom: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
@@ -138,29 +138,74 @@ const Audit = () => {
         </div>
 
         {/* Filters & Search */}
-        <div style={{ display: 'flex', gap: '16px', marginBottom: '24px' }}>
+        <div style={{ marginBottom: '24px', display: 'flex', gap: '16px', alignItems: 'center' }}>
           <div style={{ position: 'relative', flex: 1 }}>
-            <Search size={18} color="var(--text-muted)" style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)' }} />
+            <div style={{ 
+              position: 'absolute', left: 0, top: 0, bottom: 0, width: '48px', 
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              background: 'transparent', borderTopLeftRadius: '12px', borderBottomLeftRadius: '12px'
+            }}>
+              <Search size={20} color="var(--text-muted)" />
+            </div>
             <input 
               type="text" 
-              className="input" 
               placeholder="Buscar por ID de incidente o cajero..." 
               value={searchTerm}
               onChange={e => setSearchTerm(e.target.value)}
-              style={{ width: '100%', paddingLeft: '44px' }}
+              style={{ 
+                width: '100%', padding: '16px 20px 16px 48px', 
+                fontSize: '1rem', color: 'var(--text-primary)', 
+                background: 'var(--bg-card)', 
+                border: '1px solid var(--border-light)', 
+                borderRadius: '12px',
+                outline: 'none',
+                boxShadow: searchTerm ? '0 0 0 2px var(--accent-primary)' : '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
+                transition: 'all 0.2s ease'
+              }}
+              onFocus={(e) => e.target.style.boxShadow = '0 0 0 2px var(--accent-primary), 0 0 20px rgba(79, 70, 229, 0.15)'}
+              onBlur={(e) => e.target.style.boxShadow = searchTerm ? '0 0 0 2px var(--accent-primary)' : '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)'}
             />
           </div>
-          <select 
-            className="input" 
-            style={{ width: '200px' }}
-            value={filter}
-            onChange={e => setFilter(e.target.value)}
-          >
-            <option value="Todos">Todos los Estados</option>
-            <option value="Pendiente">Pendientes</option>
-            <option value="Revisado">Revisados</option>
-            <option value="Falsa Alarma">Falsas Alarmas</option>
-          </select>
+          
+          <div style={{ position: 'relative' }}>
+            <button 
+              style={{ 
+                display: 'flex', alignItems: 'center', gap: '8px', 
+                padding: '0 24px', height: '54px',
+                background: filter !== 'Todos' ? 'var(--accent-primary)' : 'var(--bg-card)', 
+                border: '1px solid',
+                borderColor: filter !== 'Todos' ? 'var(--accent-primary)' : 'var(--border-light)',
+                borderRadius: '12px', color: filter !== 'Todos' ? 'white' : 'var(--text-primary)',
+                fontWeight: 600, cursor: 'pointer', transition: 'all 0.2s ease',
+                boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+              }}
+              onClick={() => setShowFilters(!showFilters)}
+            >
+              <Filter size={20} /> {filter !== 'Todos' ? filter : 'Filtrar Estados'}
+            </button>
+            
+            {showFilters && (
+              <div style={{
+                position: 'absolute', top: '100%', right: 0, marginTop: '8px',
+                background: 'var(--bg-card)', borderRadius: '12px', border: '1px solid var(--border-light)',
+                boxShadow: '0 10px 25px rgba(0,0,0,0.1)', zIndex: 10, width: '180px', overflow: 'hidden'
+              }}>
+                {['Todos', 'Pendiente', 'Revisado', 'Falsa Alarma'].map(status => (
+                  <div key={status} onClick={() => { setFilter(status); setShowFilters(false); }}
+                    style={{
+                      padding: '12px 16px', cursor: 'pointer', fontSize: '0.9rem', fontWeight: 500,
+                      color: filter === status ? 'var(--accent-primary)' : 'var(--text-primary)',
+                      background: filter === status ? 'rgba(79, 70, 229, 0.05)' : 'transparent',
+                      borderBottom: status !== 'Falsa Alarma' ? '1px solid var(--border-light)' : 'none'
+                    }}
+                    className="hover:bg-[var(--bg-app)]"
+                  >
+                    {status === 'Todos' ? 'Todos los Estados' : status}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
 
         {/* List of Incidents */}

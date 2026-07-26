@@ -138,7 +138,7 @@ const CustomerFormModal: React.FC<CustomerFormModalProps> = ({ isOpen, onClose, 
                 <div style={{ position: 'relative' }}>
                   <Mail size={18} color="var(--text-muted)" style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)' }} />
                   <input 
-                    type="email" placeholder="cliente@correo.com"
+                    type="text" placeholder="cliente@correo.com (Opcional)"
                     value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})}
                     style={{
                       width: '100%', height: '50px', paddingLeft: '44px', paddingRight: '16px',

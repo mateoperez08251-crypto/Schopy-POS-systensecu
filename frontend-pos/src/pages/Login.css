@@ -5,6 +5,19 @@
   height: 100vh;
   width: 100vw;
   background-color: var(--bg-app);
+  background-image: url('/login-bg.png');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
+/* Glassmorphism effect for the card to look better over the image */
+.login-page-wrapper .card {
+  background: rgba(var(--bg-card-rgb, 30, 30, 30), 0.85); /* Slightly transparent if we have rgb var, else fallback */
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
 }
 
 .login-page-wrapper .card {
@@ -20,7 +33,7 @@
   height: var(--h-form);
   max-width: 100%;
   border-radius: 16px;
-  background: white;
+  background: var(--bg-card);
   position: relative;
   display: flex;
   align-items: center;
@@ -212,8 +225,8 @@
   padding: 4px 0;
   width: var(--blind-w);
   border-radius: 4px;
-  background-color: #fff;
-  color: #4d4d4d;
+  background-color: transparent;
+  color: var(--text-secondary);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -226,12 +239,12 @@
   top: 0;
   height: 100%;
   width: 1px;
-  background: #8f8f8f;
+  background: var(--border-medium);
 }
 
 .login-page-wrapper .card label.blind_input:hover {
-  color: #262626;
-  background-color: #f2f2f2;
+  color: var(--text-primary);
+  background-color: var(--bg-card);
 }
 
 .login-page-wrapper .blind-check~.form label.blind_input span.show, 
@@ -256,21 +269,27 @@
 
 .login-page-wrapper .form .title {
   width: 100%;
-  font-size: 1.5rem;
-  font-weight: 600;
+  font-size: 1.4rem;
+  font-weight: 800;
   margin-top: 0;
   margin-bottom: 1rem;
   padding-top: 0;
   padding-bottom: 1rem;
-  color: rgba(0, 0, 0, 0.7);
-  border-bottom: 2px solid rgba(0, 0, 0, 0.3);
+  background: linear-gradient(135deg, var(--accent-primary) 0%, #A78BFA 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  color: transparent;
+  border-bottom: 2px solid var(--border-light);
+  text-align: center;
+  letter-spacing: -0.5px;
 }
 
 .login-page-wrapper .form .label_input {
   white-space: nowrap;
   font-size: 1rem;
   margin-top: calc(var(--space-y) / 2);
-  color: rgba(0, 0, 0, 0.9);
+  color: var(--text-secondary);
   font-weight: 600;
   display: inline;
   text-align: left;
@@ -283,14 +302,14 @@
 
 .login-page-wrapper .form .input {
   resize: vertical;
-  background: white;
-  border: 1px solid #8f8f8f;
+  background: var(--bg-app);
+  border: 1px solid var(--border-medium);
   border-radius: 6px;
   outline: none;
   padding: var(--input-py) var(--input-px);
   font-size: 18px;
   width: 100%;
-  color: #000000b3;
+  color: var(--text-primary);
   margin: var(--space-y) 0;
   transition: all 0.25s ease;
 }
@@ -316,13 +335,13 @@
   cursor: pointer;
   text-decoration: underline;
   transition: color 0.25s ease;
-  color: #000000b3;
+  color: var(--text-primary);
   font-weight: 500;
   float: right;
 }
 
 .login-page-wrapper .form .frg_pss a:hover {
-  color: #000;
+  color: white;
 }
 
 .login-page-wrapper .form .submit {
@@ -330,14 +349,12 @@
   width: 100%;
   outline: none;
   cursor: pointer;
-  background-color: #fff;
-  background-image: linear-gradient(-180deg,
-      rgba(255, 255, 255, 0.09) 0%,
-      rgba(17, 17, 17, 0.04) 100%);
-  border: 1px solid rgba(22, 22, 22, 0.2);
+  background-color: var(--accent-primary);
+  
+  border: none;
   font-weight: 500;
   letter-spacing: 0.25px;
-  color: #000;
+  color: white;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -352,11 +369,9 @@
 }
 
 .login-page-wrapper .form .submit:hover {
-  background-image: linear-gradient(-180deg,
-      rgba(255, 255, 255, 0.18) 0%,
-      rgba(17, 17, 17, 0.08) 100%);
-  border: 1px solid rgba(22, 22, 22, 0.2);
-  color: #111;
+  
+  border: none;
+  color: white; opacity: 0.9;
 }
 
 .login-page-wrapper .social-buttons {
@@ -373,7 +388,7 @@
   padding: 0.75rem;
   border-radius: 50%;
   border: 1px solid rgba(0, 0, 0, 0.1);
-  background: white;
+  background: var(--bg-app);
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
   cursor: pointer;
   transition: all 0.3s cubic-bezier(0.0, 0, 0.2, 1);

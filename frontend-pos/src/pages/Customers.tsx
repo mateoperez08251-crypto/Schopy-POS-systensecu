@@ -1,17 +1,21 @@
 import React, { useState } from 'react';
 import { Search, Plus, Filter, MoreVertical, User, Mail, Phone, MapPin, Users, FileText } from 'lucide-react';
 import CustomerFormModal from '../components/customers/CustomerFormModal';
+import { useAuth } from '../context/AuthContext';
+import { addCustomer, deleteCustomer } from '../firebase/customersService';
 
 const Customers = ({ customers, setCustomers, showToast }: { customers: any[], setCustomers: (cust: any[]) => void, showToast?: (m: string, t?: 'success'|'error'|'info') => void }) => {
+  const { userData } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [statusFilter, setStatusFilter] = useState('Todos');
   const [showFilters, setShowFilters] = useState(false);
-  const [activeMenu, setActiveMenu] = useState<number | null>(null);
+  const [activeMenu, setActiveMenu] = useState<string | null>(null);
 
-  const handleAddCustomer = (data: any) => {
+  const handleAddCustomer = async (data: any) => {
+    if (!userData?.companyId) return;
+
     const newCustomer = {
-      id: customers.length + 1,
       name: data.name,
       documentId: data.documentId,
       email: data.email,
@@ -21,15 +25,24 @@ const Customers = ({ customers, setCustomers, showToast }: { customers: any[], s
       status: 'Activo',
       registeredDate: new Date().toISOString().split('T')[0]
     };
-    setCustomers([newCustomer, ...customers]);
-    if (showToast) showToast('Cliente agregado exitosamente', 'success');
-    setIsModalOpen(false);
+
+    try {
+      await addCustomer(userData.companyId, newCustomer);
+      if (showToast) showToast('Cliente agregado exitosamente', 'success');
+      setIsModalOpen(false);
+    } catch (error) {
+      if (showToast) showToast('Error al agregar el cliente', 'error');
+    }
   };
 
-  const handleDelete = (id: number) => {
+  const handleDelete = async (id: string) => {
     if (window.confirm('¿Estás seguro de eliminar este cliente?')) {
-      setCustomers(customers.filter(c => c.id !== id));
-      if (showToast) showToast('Cliente eliminado', 'info');
+      try {
+        await deleteCustomer(id);
+        if (showToast) showToast('Cliente eliminado', 'info');
+      } catch (error) {
+        if (showToast) showToast('Error al eliminar', 'error');
+      }
       setActiveMenu(null);
     }
   };

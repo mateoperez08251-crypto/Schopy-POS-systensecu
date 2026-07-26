@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { X, Save } from 'lucide-react';
 
 interface Product {
-  id?: number;
+  id?: string;
   name: string;
   code: string;
   category: string;

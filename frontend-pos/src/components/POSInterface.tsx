@@ -151,6 +151,72 @@ const POSInterface: React.FC<POSInterfaceProps> = ({ salesHistory, setSalesHisto
     setTimeout(() => searchInputRef.current?.focus(), 100);
   };
 
+  const handlePrintTicket = () => {
+    // Tomamos la última venta agregada (que es la actual porque se inserta al inicio)
+    const lastSale = salesHistory[0];
+    if (!lastSale) return;
+
+    const printWindow = window.open('', '_blank', 'width=400,height=600');
+    if (!printWindow) return;
+
+    let itemsHtml = '';
+    lastSale.items.forEach((item: any) => {
+      itemsHtml += `
+        <tr>
+          <td style="padding: 4px 0; font-size: 12px;">${item.name} x${item.quantity}</td>
+          <td style="padding: 4px 0; text-align: right; font-size: 12px;">$${((item.price * item.quantity) * (1 - (item.discount || 0)/100)).toFixed(2)}</td>
+        </tr>
+      `;
+    });
+
+    const html = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Ticket de Venta</title>
+        <style>
+          body { font-family: 'Courier New', Courier, monospace; width: 300px; margin: 0 auto; padding: 20px; color: #000; }
+          .header { text-align: center; margin-bottom: 20px; }
+          .header h2 { margin: 0; font-size: 18px; }
+          .header p { margin: 4px 0; font-size: 12px; }
+          .divider { border-top: 1px dashed #000; margin: 10px 0; }
+          table { width: 100%; border-collapse: collapse; }
+          .total { font-size: 16px; font-weight: bold; text-align: right; margin-top: 10px; }
+          .footer { text-align: center; margin-top: 30px; font-size: 12px; }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <h2>TICKET DE COMPRA</h2>
+          <p>Ticket #${lastSale.id}</p>
+          <p>Fecha: ${lastSale.date} ${lastSale.time}</p>
+          ${lastSale.client ? `<p>Cliente: ${lastSale.client}</p>` : ''}
+        </div>
+        <div class="divider"></div>
+        <table>
+          <tbody>
+            ${itemsHtml}
+          </tbody>
+        </table>
+        <div class="divider"></div>
+        <div class="total">Total: $${lastSale.total.toFixed(2)}</div>
+        <p style="text-align: right; font-size: 12px; margin: 4px 0;">Método: ${lastSale.paymentMethod}</p>
+        <div class="footer">
+          <p>¡Gracias por su compra!</p>
+          <p style="font-size: 10px; margin-top: 10px;">Schopy POS System</p>
+        </div>
+        <script>
+          window.onload = function() { window.print(); window.close(); }
+        </script>
+      </body>
+      </html>
+    `;
+
+    printWindow.document.open();
+    printWindow.document.write(html);
+    printWindow.document.close();
+  };
+
   const handleEmptyCart = () => {
     setCart([]);
     searchInputRef.current?.focus();
@@ -563,7 +629,7 @@ const POSInterface: React.FC<POSInterfaceProps> = ({ salesHistory, setSalesHisto
                   </div>
                 )}
                 <div style={{ marginTop: '16px', width: '100%' }}>
-                  <button className="btn btn-outline" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px', padding: '16px', width: '100%' }}>
+                  <button className="btn btn-outline" onClick={handlePrintTicket} style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px', padding: '16px', width: '100%' }}>
                     <Printer size={20} /> Imprimir Recibo
                   </button>
                 </div>
