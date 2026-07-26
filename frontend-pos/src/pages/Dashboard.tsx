@@ -9,7 +9,8 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, 
   ResponsiveContainer, Cell
 } from 'recharts';
-import * as XLSX from 'xlsx';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 import { useDashboardData } from '../hooks/useDashboardData';
 
 const Dashboard = () => {
@@ -27,111 +28,207 @@ const Dashboard = () => {
   };
 
   const handleExport = () => {
-    showToast("Generando reporte Excel...");
+    showToast("Generando reporte PDF profesional...");
 
     const now = new Date();
     const fecha = now.toLocaleDateString('es-DO');
     const hora = now.toLocaleTimeString('es-DO');
 
-    // Estructurar los datos en un Array of Arrays (AoA) para Excel
-    const wbData: any[][] = [];
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.width;
+    const pageHeight = doc.internal.pageSize.height;
+    
+    // --- FUNCIÓN DE CABECERA Y PIE DE PÁGINA GLOBAL ---
+    const addHeaderFooter = (data: any) => {
+      // Cabecera en todas las páginas
+      doc.setFillColor(30, 41, 59); // Slate-800
+      doc.rect(0, 0, pageWidth, 25, 'F');
+      
+      doc.setTextColor(255, 255, 255);
+      doc.setFontSize(16);
+      doc.setFont('helvetica', 'bold');
+      doc.text('SCHOPY POS SYSTEM', 14, 16);
+      
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'normal');
+      doc.text('REPORTE EJECUTIVO DE OPERACIONES', pageWidth - 14, 16, { align: 'right' });
 
-    // ==========================================
-    // CABECERA DEL REPORTE
-    // ==========================================
-    wbData.push(['REPORTE FINANCIERO Y OPERATIVO DE VENTAS']);
-    wbData.push(['Empresa:', 'SCHOPY POS SYSTEM SA.']);
-    wbData.push(['Fecha de Generación:', fecha]);
-    wbData.push(['Hora de Generación:', hora]);
-    wbData.push([]);
+      // Pie de página en todas las páginas
+      doc.setFillColor(248, 250, 252); // Slate-50
+      doc.rect(0, pageHeight - 15, pageWidth, 15, 'F');
+      doc.setTextColor(100, 116, 139); // Slate-500
+      doc.setFontSize(9);
+      doc.text(`Generado el: ${fecha} a las ${hora}`, 14, pageHeight - 6);
+      doc.text(`Página ${data.pageNumber} de ${data.pageCount || 1}`, pageWidth - 14, pageHeight - 6, { align: 'right' });
+    };
+
+    // --- METADATA INICIAL ---
+    let startY = 40;
+    doc.setTextColor(15, 23, 42);
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    
+    let tipoReporte = 'Mensual';
+    if (timeFilter === '1 D') tipoReporte = 'Diario';
+    if (timeFilter === '1 M') tipoReporte = 'Mensual';
+    if (timeFilter === '1 A') tipoReporte = 'Anual';
+    if (timeFilter === '6 M') tipoReporte = 'Semestral';
+    if (timeFilter === 'TODO') tipoReporte = 'Histórico Completo';
+
+    doc.text(`Resumen Ejecutivo ${tipoReporte}`, 14, startY);
+    
+    doc.setFontSize(10);
+    doc.setTextColor(71, 85, 105);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`El siguiente documento detalla las métricas financieras, operativas y de seguridad correspondientes al período ${tipoReporte.toLowerCase()}.`, 14, startY + 6);
+    
+    startY += 20;
 
     // ==========================================
     // SECCIÓN 1: MÉTRICAS GENERALES
     // ==========================================
-    wbData.push(['======================================']);
-    wbData.push(['SECCIÓN 1: RESUMEN GENERAL (MÉTRICAS CLAVE)']);
-    wbData.push(['======================================']);
-    wbData.push(['Métrica', 'Valor', 'Notas']);
-    wbData.push(['Total Facturas Emitidas', data.metrics.invoices, 'Operaciones registradas']);
-    wbData.push(['Ticket Promedio de Venta', data.metrics.avgTicket, 'Gasto promedio por cliente']);
-    wbData.push(['Ingresos Totales Brutos', data.metrics.totalRevenue, 'Sin descontar costos operativos']);
-    wbData.push(['Ganancia Neta Calculada', data.metrics.netProfit, 'Beneficio final retenido']);
-    wbData.push([]);
-    wbData.push([]);
+    doc.setFontSize(12);
+    doc.setTextColor(15, 23, 42);
+    doc.setFont('helvetica', 'bold');
+    doc.text('1. MÉTRICAS CLAVE', 14, startY);
+    
+    autoTable(doc, {
+      startY: startY + 4,
+      head: [['Indicador', 'Valor Actual', 'Descripción']],
+      body: [
+        ['Facturas Emitidas', data.metrics.invoices, 'Volumen de transacciones procesadas'],
+        ['Ticket Promedio', data.metrics.avgTicket, 'Gasto medio por cliente en el período'],
+        ['Ingresos Totales', data.metrics.totalRevenue, 'Recaudación bruta general'],
+        ['Ganancia Neta', data.metrics.netProfit, 'Beneficio después de costos operativos']
+      ],
+      theme: 'grid',
+      headStyles: { fillColor: [79, 70, 229], textColor: 255, fontStyle: 'bold' },
+      styles: { fontSize: 10, cellPadding: 5 },
+      alternateRowStyles: { fillColor: [249, 250, 251] },
+      didDrawPage: addHeaderFooter
+    });
+
+    // @ts-ignore
+    startY = doc.lastAutoTable.finalY + 15;
 
     // ==========================================
     // SECCIÓN 2: DESGLOSE FINANCIERO (GANANCIAS Y COSTOS)
     // ==========================================
-    wbData.push(['======================================']);
-    wbData.push(['SECCIÓN 2: DESGLOSE FINANCIERO MENSUAL Y GANANCIAS']);
-    wbData.push(['======================================']);
-    wbData.push(['Período', 'Ingresos Brutos ($)', 'Costos Operativos/Inventario ($)', 'Ganancia Neta ($)', 'Margen de Ganancia (%)']);
+    doc.setFontSize(12);
+    doc.setTextColor(15, 23, 42);
+    doc.setFont('helvetica', 'bold');
+    doc.text(`2. ESTADO FINANCIERO ${tipoReporte.toUpperCase()}`, 14, startY);
     
     let totalIngresos = 0;
     let totalCostos = 0;
     let totalGanancias = 0;
 
-    data.financials.forEach(f => {
+    // Filtrar los datos en base al timeFilter (Simulación)
+    let financialData = data.financials;
+    if (timeFilter === '1 D' || timeFilter === '1 S') financialData = [data.financials[data.financials.length - 1]];
+    if (timeFilter === '1 M') financialData = [data.financials[data.financials.length - 1]];
+    if (timeFilter === '6 M') financialData = data.financials.slice(-6);
+
+    const bodyFinancials = financialData.map(f => {
       const margen = f.ingresos > 0 ? ((f.ganancia / f.ingresos) * 100).toFixed(1) : '0';
-      wbData.push([f.name, f.ingresos, f.costos, f.ganancia, `${margen}%`]);
       totalIngresos += f.ingresos;
       totalCostos += f.costos;
       totalGanancias += f.ganancia;
+      return [f.name, `$${f.ingresos.toLocaleString()}`, `$${f.costos.toLocaleString()}`, `$${f.ganancia.toLocaleString()}`, `${margen}%`];
     });
-    
-    // Fila de totales
+
     const margenTotal = totalIngresos > 0 ? ((totalGanancias / totalIngresos) * 100).toFixed(1) : '0';
-    wbData.push(['TOTALES ACUMULADOS', totalIngresos, totalCostos, totalGanancias, `${margenTotal}%`]);
-    wbData.push([]);
-    wbData.push([]);
+    bodyFinancials.push(['TOTAL ACUMULADO', `$${totalIngresos.toLocaleString()}`, `$${totalCostos.toLocaleString()}`, `$${totalGanancias.toLocaleString()}`, `${margenTotal}%`]);
+
+    autoTable(doc, {
+      startY: startY + 4,
+      head: [['Período', 'Ingresos Brutos', 'Costos Operativos', 'Ganancia Neta', 'Margen']],
+      body: bodyFinancials,
+      theme: 'striped',
+      headStyles: { fillColor: [16, 185, 129], textColor: 255 },
+      styles: { fontSize: 9, cellPadding: 4, halign: 'center' },
+      columnStyles: { 0: { halign: 'left', fontStyle: 'bold' } },
+      didParseCell: (hookData) => {
+        if (hookData.row.index === bodyFinancials.length - 1) {
+          hookData.cell.styles.fontStyle = 'bold';
+          hookData.cell.styles.fillColor = [226, 232, 240];
+          hookData.cell.styles.textColor = [15, 23, 42];
+        }
+      },
+      didDrawPage: addHeaderFooter
+    });
+
+    // @ts-ignore
+    startY = doc.lastAutoTable.finalY + 15;
+    
+    if (startY > 230) { doc.addPage(); startY = 40; }
 
     // ==========================================
     // SECCIÓN 3: RENDIMIENTO DE PRODUCTOS
     // ==========================================
-    wbData.push(['======================================']);
-    wbData.push(['SECCIÓN 3: TOP 5 PRODUCTOS DE MAYOR RENDIMIENTO']);
-    wbData.push(['======================================']);
-    wbData.push(['Ranking', 'Nombre del Producto', 'Unidades Vendidas', 'Ingresos Generados ($)', 'Precio Promedio de Venta ($)']);
-    data.topProducts.forEach((p, index) => {
-      const avgPrice = p.sold > 0 ? Number((p.revenue / p.sold).toFixed(2)) : 0;
-      wbData.push([`#${index + 1}`, p.name, p.sold, p.revenue, avgPrice]);
+    doc.setFontSize(12);
+    doc.setTextColor(15, 23, 42);
+    doc.setFont('helvetica', 'bold');
+    doc.text('3. TOP 5 PRODUCTOS MÁS VENDIDOS', 14, startY);
+    
+    const bodyProducts = data.topProducts.map((p, index) => {
+      const avgPrice = p.sold > 0 ? (p.revenue / p.sold).toFixed(2) : '0';
+      return [`#${index + 1}`, p.name, p.sold.toString(), `$${p.revenue.toLocaleString()}`, `$${avgPrice}`];
     });
-    wbData.push([]);
-    wbData.push([]);
+
+    autoTable(doc, {
+      startY: startY + 4,
+      head: [['Rank', 'Producto', 'Unidades', 'Revenue Generado', 'Precio Promedio']],
+      body: bodyProducts,
+      theme: 'grid',
+      headStyles: { fillColor: [245, 158, 11] },
+      styles: { fontSize: 9, cellPadding: 4 },
+      didDrawPage: addHeaderFooter
+    });
+
+    // @ts-ignore
+    startY = doc.lastAutoTable.finalY + 15;
+
+    if (startY > 230) { doc.addPage(); startY = 40; }
 
     // ==========================================
     // SECCIÓN 4: AUDITORÍA Y SEGURIDAD IA
     // ==========================================
-    wbData.push(['======================================']);
-    wbData.push(['SECCIÓN 4: REPORTE DE RETENCIÓN Y AUDITORÍA IA']);
-    wbData.push(['======================================']);
-    wbData.push(['Mes', 'Falsos Positivos', 'Alertas Verificadas', 'Alertas Pendientes', 'Total Incidentes']);
-    data.retention.forEach(r => {
+    doc.setFontSize(12);
+    doc.setTextColor(15, 23, 42);
+    doc.setFont('helvetica', 'bold');
+    doc.text('4. AUDITORÍA DE SEGURIDAD IA', 14, startY);
+    
+    const bodyRetention = data.retention.map(r => {
       const total = r.falsosPositivos + r.verificados + r.pendientes;
-      wbData.push([r.name, r.falsosPositivos, r.verificados, r.pendientes, total]);
+      return [r.name, r.verificados.toString(), r.pendientes.toString(), r.falsosPositivos.toString(), total.toString()];
     });
-    wbData.push([]);
-    wbData.push(['*** FIN DEL REPORTE ***']);
 
-    // Crear libro de trabajo (workbook) y hoja de cálculo (worksheet)
-    const wb = XLSX.utils.book_new();
-    const ws = XLSX.utils.aoa_to_sheet(wbData);
+    autoTable(doc, {
+      startY: startY + 4,
+      head: [['Período', 'Fraudes Evitados', 'En Revisión', 'Falsas Alarmas', 'Total Detectado']],
+      body: bodyRetention,
+      theme: 'striped',
+      headStyles: { fillColor: [225, 29, 72] }, // Rose-600
+      styles: { fontSize: 9, halign: 'center', cellPadding: 4 },
+      columnStyles: { 0: { halign: 'left', fontStyle: 'bold' } },
+      didDrawPage: addHeaderFooter
+    });
 
-    // Ajustar el ancho de las columnas
-    ws['!cols'] = [
-      { wch: 30 }, // A
-      { wch: 25 }, // B
-      { wch: 30 }, // C
-      { wch: 25 }, // D
-      { wch: 25 }  // E
-    ];
+    // --- MENSAJE FINAL ---
+    // @ts-ignore
+    startY = doc.lastAutoTable.finalY + 20;
+    if (startY > 260) { doc.addPage(); startY = 40; }
 
-    XLSX.utils.book_append_sheet(wb, ws, "Reporte Principal");
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'italic');
+    doc.setTextColor(100, 116, 139);
+    doc.text('*** Fin del Reporte ***', pageWidth / 2, startY, { align: 'center' });
+    doc.text('Este documento fue generado automáticamente por el sistema de inteligencia artificial de Schopy POS.', pageWidth / 2, startY + 6, { align: 'center' });
 
-    // Generar y descargar el archivo XLSX
-    XLSX.writeFile(wb, `Reporte_Ventas_Schopy_${now.toISOString().split('T')[0]}.xlsx`);
-
-    setTimeout(() => showToast("Reporte Excel descargado exitosamente"), 500);
+    // Guardar
+    doc.save(`Reporte_Ejecutivo_Schopy_${now.toISOString().split('T')[0]}.pdf`);
+    setTimeout(() => showToast("Reporte PDF profesional descargado"), 500);
   };
 
   if (loading) {

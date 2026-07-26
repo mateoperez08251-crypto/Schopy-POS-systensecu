@@ -5,15 +5,7 @@ import Fuse from 'fuse.js';
 import ProductFormModal from '../components/inventory/ProductFormModal';
 import ConfirmDeleteModal from '../components/inventory/ConfirmDeleteModal';
 
-// Mock Data Temporal
-const INITIAL_INVENTORY = [
-  { id: 1, name: 'Coca Cola 2L', price: 2.50, costPrice: 1.40, code: '7501055310883', category: 'Bebidas', stock: 45, minStock: 20, supplier: 'Coca Cola Femsa', dateAdded: '2023-10-15', expirationDate: '2026-12-01', location: 'Pasillo 1, Estante A' },
-  { id: 2, name: 'Sabritas Original 45g', price: 1.20, costPrice: 0.65, code: '7501011133906', category: 'Snacks', stock: 12, minStock: 25, supplier: 'PepsiCo', dateAdded: '2023-10-20', expirationDate: '2026-08-15', location: 'Pasillo 2, Estante C' },
-  { id: 3, name: 'Atún Dolores en Agua', price: 1.80, costPrice: 1.10, code: '7501041810502', category: 'Abarrotes', stock: 100, minStock: 30, supplier: 'Grupo Pinsa', dateAdded: '2023-09-01', expirationDate: '2027-03-01', location: 'Pasillo 3, Estante B' },
-];
-
-const Inventory = () => {
-  const [inventory, setInventory] = useState(INITIAL_INVENTORY);
+const Inventory = ({ inventory, setInventory, showToast }: { inventory: any[], setInventory: (inv: any[]) => void, showToast?: (m: string, t?: 'success'|'error') => void }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [supplierTerm, setSupplierTerm] = useState('');
   const [dateFilter, setDateFilter] = useState('');
@@ -43,6 +35,7 @@ const Inventory = () => {
     if (productData.id) {
       // Editar
       setInventory(inventory.map(p => p.id === productData.id ? productData : p));
+      if (showToast) showToast('Producto actualizado correctamente', 'success');
     } else {
       // Nuevo
       const newProduct = {
@@ -51,7 +44,9 @@ const Inventory = () => {
         dateAdded: new Date().toISOString().split('T')[0]
       };
       setInventory([newProduct, ...inventory]);
+      if (showToast) showToast('Producto agregado exitosamente al inventario', 'success');
     }
+    setIsModalOpen(false);
   };
 
   const handleDeleteRequest = (product: any) => {

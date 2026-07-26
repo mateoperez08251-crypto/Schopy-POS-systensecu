@@ -3,7 +3,7 @@ import { NavLink } from 'react-router-dom';
 import { 
   LayoutDashboard, ShoppingBag, Package, Calendar as CalendarIcon, 
   BarChart2, ShieldAlert, MoreHorizontal, Settings, HelpCircle, 
-  ArrowUpRight, LogOut, Menu, X
+  ArrowUpRight, LogOut, Menu, X, Truck, Users
 } from 'lucide-react';
 
 const Sidebar = () => {
@@ -22,6 +22,16 @@ const Sidebar = () => {
       ]
     },
     { icon: Package, label: 'Inventario', path: '/inventory' },
+    {
+      icon: Truck,
+      label: 'Proveedores',
+      path: '/suppliers',
+      subItems: [
+        { label: 'Directorio', path: '/suppliers' },
+        { label: 'Recepción Mercancía', path: '/receivings' }
+      ]
+    },
+    { icon: Users, label: 'Clientes', path: '/customers' },
     { icon: ShieldAlert, label: 'Auditoría IA', path: '/audit' },
     { icon: BarChart2, label: 'Reportes', path: '/reports' },
     { icon: CalendarIcon, label: 'Calendario', path: '/calendar' }

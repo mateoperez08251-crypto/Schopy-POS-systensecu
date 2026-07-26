@@ -29,12 +29,58 @@ const initialNotifications = [
   }
 ];
 
+// Variable global a nivel de módulo para que solo suene una vez por sesión
+let hasPlayedNotificationDing = false;
+
 const TopNav = ({ title = "" }: { title?: string }) => {
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
+  const [showPopupNotification, setShowPopupNotification] = useState(false);
   const [notifications, setNotifications] = useState(initialNotifications);
   const notifRef = useRef<HTMLDivElement>(null);
   const location = useLocation();
+
+  const playDing = () => {
+    try {
+      const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
+      if (!AudioContext) return;
+      const ctx = new AudioContext();
+      const osc = ctx.createOscillator();
+      const gainNode = ctx.createGain();
+      
+      osc.connect(gainNode);
+      gainNode.connect(ctx.destination);
+      
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(880, ctx.currentTime); // A5
+      osc.frequency.exponentialRampToValueAtTime(440, ctx.currentTime + 0.5); // Drop to A4
+      
+      gainNode.gain.setValueAtTime(0, ctx.currentTime);
+      gainNode.gain.linearRampToValueAtTime(0.3, ctx.currentTime + 0.05);
+      gainNode.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 1);
+      
+      osc.start(ctx.currentTime);
+      osc.stop(ctx.currentTime + 1);
+    } catch(e) {}
+  };
+
+  useEffect(() => {
+    if (hasPlayedNotificationDing) return;
+
+    // Simulate a new notification arriving after 1.5 seconds
+    const timer = setTimeout(() => {
+      hasPlayedNotificationDing = true;
+      playDing();
+      setShowPopupNotification(true);
+      
+      // Hide after 5 seconds
+      setTimeout(() => {
+        setShowPopupNotification(false);
+      }, 5000);
+    }, 1500);
+    
+    return () => clearTimeout(timer);
+  }, []);
 
   useEffect(() => {
     // Revisar si ya está en modo oscuro
@@ -126,10 +172,39 @@ const TopNav = ({ title = "" }: { title?: string }) => {
               className="bell-button"
               onClick={() => setShowNotifications(!showNotifications)}
               style={{ padding: '8px', borderRadius: '50%', border: '1px solid var(--border-medium)', background: 'var(--bg-card)', position: 'relative', cursor: 'pointer' }}
+              title={notifications.length > 0 ? `${notifications.length} nueva(s): ${notifications[0].title}` : 'Notificaciones'}
             >
               <Bell className="bell-icon" size={18} color="var(--text-secondary)" />
+              {/* Red dot for unread notifications */}
               {notifications.length > 0 && (
                 <div style={{ position: 'absolute', top: -2, right: -2, width: 8, height: 8, background: 'var(--accent-danger)', borderRadius: '50%' }}></div>
+              )}
+              
+              {/* Burbuja Flotante Animada y con Sonido */}
+              {showPopupNotification && notifications.length > 0 && (
+                <div className="animate-pop" style={{ 
+                  position: 'absolute', top: '100%', right: '50%', transform: 'translateX(50%)', marginTop: '14px',
+                  background: 'var(--bg-card)', color: 'var(--text-primary)', 
+                  border: '1px solid var(--border-medium)',
+                  borderRadius: '12px', padding: '12px 16px', 
+                  whiteSpace: 'nowrap', display: 'flex', gap: '12px', alignItems: 'center',
+                  boxShadow: '0 10px 25px rgba(0, 0, 0, 0.2)', zIndex: 110,
+                  cursor: 'default'
+                }} onClick={(e) => e.stopPropagation()}>
+                  <div style={{
+                     position: 'absolute', top: '-6px', right: '50%', transform: 'translateX(50%)',
+                     width: '12px', height: '12px', background: 'var(--bg-card)',
+                     borderLeft: '1px solid var(--border-medium)', borderTop: '1px solid var(--border-medium)',
+                     rotate: '45deg'
+                  }}></div>
+                  <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'var(--accent-danger)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                     <Bell size={16} />
+                  </div>
+                  <div style={{ textAlign: 'left' }}>
+                    <p style={{ fontSize: '0.75rem', color: 'var(--accent-danger)', fontWeight: 800, marginBottom: '2px' }}>NUEVA ALERTA</p>
+                    <p style={{ fontSize: '0.9rem', fontWeight: 600 }}>{notifications[0].title}</p>
+                  </div>
+                </div>
               )}
             </div>
             

@@ -15,6 +15,7 @@ interface Product {
   expirationDate?: string;
   location?: string;
   imageUrl?: string;
+  unitsPerPackage?: number;
 }
 
 interface ProductFormModalProps {
@@ -39,7 +40,8 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({ isOpen, onClose, on
     minStock: 20,
     expirationDate: '',
     location: '',
-    imageUrl: ''
+    imageUrl: '',
+    unitsPerPackage: 1
   });
 
   useEffect(() => {
@@ -57,7 +59,8 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({ isOpen, onClose, on
         minStock: 20,
         expirationDate: '',
         location: '',
-        imageUrl: ''
+        imageUrl: '',
+        unitsPerPackage: 1
       });
     }
   }, [initialData, isOpen]);
@@ -285,10 +288,9 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({ isOpen, onClose, on
                 <input 
                   type="number" 
                   min="0"
-                  required
                   value={formData.stock}
                   onChange={e => setFormData({...formData, stock: parseInt(e.target.value) || 0})}
-                  placeholder="0"
+                  placeholder="0 (Opcional)"
                   style={{ background: 'var(--bg-app)', border: '1px solid var(--border-medium)', color: 'var(--text-primary)', padding: '10px 12px', borderRadius: 'var(--radius-md)', outline: 'none' }} 
                 />
               </div>
@@ -302,6 +304,26 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({ isOpen, onClose, on
                   placeholder="20"
                   style={{ background: 'var(--bg-app)', border: '1px solid var(--border-medium)', color: 'var(--text-primary)', padding: '10px 12px', borderRadius: 'var(--radius-md)', outline: 'none' }} 
                 />
+              </div>
+            </div>
+
+            {/* Configuración de Empaque */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '8px' }}>
+              <label style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Unidades por Empaque (Caja/Fardo)</label>
+              <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                <input 
+                  type="text" 
+                  placeholder="Ej. 24"
+                  value={formData.unitsPerPackage || ''}
+                  onChange={e => {
+                    const val = e.target.value.replace(/[^0-9]/g, '');
+                    setFormData({...formData, unitsPerPackage: val ? parseInt(val) : 0});
+                  }}
+                  style={{ width: '120px', background: 'var(--bg-app)', border: '1px solid var(--border-medium)', color: 'var(--text-primary)', padding: '10px 12px', borderRadius: 'var(--radius-md)', outline: 'none' }} 
+                />
+                <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                  (Útil para multiplicar entradas al recibir cajas)
+                </span>
               </div>
             </div>
 
