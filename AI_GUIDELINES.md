@@ -15,3 +15,5 @@
 * **Minimalismo:** La interfaz del Punto de Venta (POS) debe ser rápida, enfocada y sin distracciones (e.g. esconder imágenes de productos si el usuario solo quiere ver nombres, usar búsqueda responsiva).
 * **Flujo de Usuario (Cajero):** Los cajeros necesitan velocidad. Minimiza los clics necesarios para ver información clave. El carrito y el monto total deben estar siempre visibles sin ventanas emergentes innecesarias.
 * **Interpretación de "Ventanas o Modales Independientes":** Cuando el usuario solicite que un apartado sea una "ventana" o "modal" independiente (ej. "Ventas con comprobante sea un modal independiente"), **NO** implementes un popup sobrepuesto (overlays, fondos oscuros, z-index altos o `createPortal`) a menos que sea explícitamente requerido como un "popup" pequeño. En su lugar, crea una **ruta o página completamente nueva (full-page route)** que comparta el mismo diseño y componentes, pero que esté mapeada a su propio enlace en el menú (Sidebar) para que la vista sea limpia, 100% igual a la original y verdaderamente independiente a nivel de navegación.
+
+Hola estoy aquí
