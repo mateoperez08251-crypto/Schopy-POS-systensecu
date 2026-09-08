@@ -1,9 +1,8 @@
 import React, { useState } from 'react';
 import { Store, ShieldCheck } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { doc, setDoc } from 'firebase/firestore';
-import { db } from '../firebase/config';
 import { useNavigate } from 'react-router-dom';
+import { addStaffLocal } from '../firebase/localStaffService';
 
 const Setup = () => {
   const [companyName, setCompanyName] = useState('');
@@ -29,17 +28,12 @@ const Setup = () => {
     try {
       // Usaremos el propio UID del creador como companyId para garantizar que sea único mundialmente
       const companyId = currentUser.uid || currentUser.id;
-      
-      const newAdminData = {
-        companyId: companyId,
+      const settingsData = {
         companyName: companyName, // Guardamos el nombre para el header
-        role: 'admin',
-        name: currentUser.email?.split('@')[0] || currentUser.name || 'Administrador',
-        email: currentUser.email
       };
 
-      // Guardamos el documento en Firestore
-      await setDoc(doc(db, 'users', companyId), newAdminData);
+      // Guardamos la configuración en localStorage
+      localStorage.setItem('schopy_store_settings', JSON.stringify(settingsData));
 
       // Desactivamos la bandera de setup en el contexto
       if (setNeedsSetup) {

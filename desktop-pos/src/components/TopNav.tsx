@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { LayoutDashboard, Search, Bell, Mail, Share2, ShieldAlert, CheckCircle2, AlertTriangle, BellOff, ShoppingCart, FileText, History, Package, X } from 'lucide-react';
+import { subscribeToInventory } from '../firebase/inventoryService';
 
 const initialNotifications: any[] = [];
 
@@ -14,11 +15,103 @@ const TopNav = ({ title = "" }: { title?: string }) => {
   const [showMails, setShowMails] = useState(false);
   const [showPopupNotification, setShowPopupNotification] = useState(false);
   const [showSubscriptionWarning, setShowSubscriptionWarning] = useState(false);
-  const [notifications, setNotifications] = useState(initialNotifications);
+  const [notifications, setNotifications] = useState<any[]>([]);
+  const [inventoryItems, setInventoryItems] = useState<any[]>([]);
   const notifRef = useRef<HTMLDivElement>(null);
   const mailRef = useRef<HTMLDivElement>(null);
   const location = useLocation();
   const { daysRemaining = null } = useAuth();
+
+  // Subscribe to inventory for low stock alerts
+  useEffect(() => {
+    const dummyCompanyId = 'local';
+    const unsub = subscribeToInventory(dummyCompanyId, (items) => {
+      setInventoryItems(items);
+    });
+    return () => unsub();
+  }, []);
+
+  // Generate notifications from inventory
+  useEffect(() => {
+    const lowStockItems = inventoryItems.filter(item => (item.stock || 0) <= 5 && (item.stock || 0) > 0);
+    const outOfStockItems = inventoryItems.filter(item => (item.stock || 0) <= 0);
+    
+    // Expired / expiring soon products
+    const now = new Date();
+    const in7days = new Date();
+    in7days.setDate(now.getDate() + 7);
+    
+    const expiredItems = inventoryItems.filter(item => {
+      if (!item.expirationDate) return false;
+      return new Date(item.expirationDate) <= now;
+    });
+    
+    const expiringSoonItems = inventoryItems.filter(item => {
+      if (!item.expirationDate) return false;
+      const expDate = new Date(item.expirationDate);
+      return expDate > now && expDate <= in7days;
+    });
+
+    const newNotifs: any[] = [];
+    
+    // Expired products (highest priority)
+    expiredItems.forEach(item => {
+      newNotifs.push({
+        id: `exp-${item.id}`,
+        icon: AlertTriangle,
+        title: `VENCIDO: ${item.name}`,
+        desc: `Este producto venció el ${new Date(item.expirationDate).toLocaleDateString('es-DO')}. Retíralo de la venta.`,
+        time: 'Urgente',
+        type: 'danger'
+      });
+    });
+
+    // Out of stock
+    outOfStockItems.forEach(item => {
+      newNotifs.push({
+        id: `out-${item.id}`,
+        icon: Package,
+        title: `${item.name} — AGOTADO`,
+        desc: `Este producto tiene 0 unidades. Solicita reabastecimiento urgente.`,
+        time: 'Ahora',
+        type: 'danger'
+      });
+    });
+
+    // Expiring soon
+    expiringSoonItems.forEach(item => {
+      const daysLeft = Math.ceil((new Date(item.expirationDate).getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+      newNotifs.push({
+        id: `expiring-${item.id}`,
+        icon: AlertTriangle,
+        title: `Por vencer: ${item.name}`,
+        desc: `Vence en ${daysLeft} día${daysLeft !== 1 ? 's' : ''} (${new Date(item.expirationDate).toLocaleDateString('es-DO')}).`,
+        time: 'Pronto',
+        type: 'warning'
+      });
+    });
+
+    // Low stock
+    lowStockItems.forEach(item => {
+      newNotifs.push({
+        id: `low-${item.id}`,
+        icon: AlertTriangle,
+        title: `Stock bajo: ${item.name}`,
+        desc: `Solo quedan ${item.stock} unidades disponibles.`,
+        time: 'Ahora',
+        type: 'warning'
+      });
+    });
+
+    if (newNotifs.length > 0 && !hasPlayedNotificationDing) {
+      hasPlayedNotificationDing = true;
+      playDing();
+      setShowPopupNotification(true);
+      setTimeout(() => setShowPopupNotification(false), 5000);
+    }
+
+    setNotifications(newNotifs);
+  }, [inventoryItems]);
 
   const playDing = () => {
     try {

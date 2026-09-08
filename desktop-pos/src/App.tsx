@@ -34,6 +34,7 @@ import RestockModal from './components/inventory/RestockModal';
 import { useAuth } from './context/AuthContext';
 import { subscribeToInventory } from './firebase/inventoryService';
 import { subscribeToCustomers } from './firebase/customersService';
+import { subscribeToSales } from './firebase/localSalesService';
 
 function App() {
   const [salesHistory, setSalesHistory] = useState<any[]>([]);
@@ -46,7 +47,6 @@ function App() {
   const { currentUser, userData } = useAuth();
 
   React.useEffect(() => {
-    // We can use a dummy companyId for local storage compatibility
     const dummyCompanyId = 'local';
     const unsubInventory = subscribeToInventory(dummyCompanyId, (items) => {
       setInventory(items);
@@ -54,9 +54,17 @@ function App() {
     const unsubCustomers = subscribeToCustomers(dummyCompanyId, (items) => {
       setCustomers(items);
     });
+    const unsubSales = subscribeToSales((items) => {
+      setSalesHistory(items.sort((a: any, b: any) => {
+        const da = a.createdAt || a.date || '';
+        const db = b.createdAt || b.date || '';
+        return db.localeCompare(da);
+      }));
+    });
     return () => {
       unsubInventory();
       unsubCustomers();
+      unsubSales();
     };
   }, []);
 

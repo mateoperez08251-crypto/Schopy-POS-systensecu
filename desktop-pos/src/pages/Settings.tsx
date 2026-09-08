@@ -1,7 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { Store, Settings as SettingsIcon, Printer, Shield, Save, Percent, MapPin, Phone, FileText } from 'lucide-react';
-import { doc, getDoc, updateDoc } from 'firebase/firestore';
-import { db } from '../firebase/config';
 import { useAuth } from '../context/AuthContext';
 import { updateStaffLocal } from '../firebase/localStaffService';
 
@@ -32,13 +30,11 @@ const Settings = () => {
 
   useEffect(() => {
     const loadSettings = async () => {
-      if (!currentUser) return;
       setLoading(true);
       try {
-        const docRef = doc(db, 'users', currentUser.uid || currentUser.id);
-        const docSnap = await getDoc(docRef);
-        if (docSnap.exists()) {
-          const data = docSnap.data();
+        const stored = localStorage.getItem('schopy_store_settings');
+        if (stored) {
+          const data = JSON.parse(stored);
           if (data.companyName) setCompanyName(data.companyName);
           if (data.address) setAddress(data.address);
           if (data.phone) setPhone(data.phone);
@@ -55,7 +51,7 @@ const Settings = () => {
       setLoading(false);
     };
     loadSettings();
-  }, [currentUser]);
+  }, []);
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -65,8 +61,7 @@ const Settings = () => {
     setMessage({ type: '', text: '' });
 
     try {
-      const docRef = doc(db, 'users', currentUser.uid || currentUser.id);
-      await updateDoc(docRef, {
+      const settingsData = {
         companyName,
         address,
         phone,
@@ -76,7 +71,8 @@ const Settings = () => {
         ticketFooter,
         requirePinForDiscount,
         requirePinForDelete
-      });
+      };
+      localStorage.setItem('schopy_store_settings', JSON.stringify(settingsData));
       // Si el usuario intentó guardar el PIN usando el botón principal
       if (newPin.length === 4) {
         if (currentUser.pin && currentUser.pin !== currentPin) {

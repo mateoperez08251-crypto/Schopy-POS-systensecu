@@ -11,16 +11,16 @@ import {
 } from 'recharts';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { useDashboardData } from '../hooks/useDashboardData';
+import { useDashboardData, TimeFilter } from '../hooks/useDashboardData';
 import { useAuth } from '../context/AuthContext';
 
 const Dashboard = () => {
-  const { data, loading } = useDashboardData();
+  const [timeFilter, setTimeFilter] = useState<TimeFilter>('1 A');
+  const { data, loading } = useDashboardData(timeFilter);
   const { userData } = useAuth();
   const navigate = useNavigate();
   
   // Estados para las interacciones
-  const [timeFilter, setTimeFilter] = useState('1 A');
   const [toast, setToast] = useState<string | null>(null);
 
 
@@ -268,11 +268,7 @@ const Dashboard = () => {
     );
   }
 
-  let filteredRevenue = data.revenue;
-  if (timeFilter === '6 M') filteredRevenue = data.revenue.slice(-6);
-  if (timeFilter === '1 M') filteredRevenue = data.revenue.slice(-1);
-  if (timeFilter === '1 S') filteredRevenue = data.revenue.slice(-1);
-  if (timeFilter === '1 D') filteredRevenue = data.revenue.slice(-1);
+  const filteredRevenue = data.revenue;
 
   return (
     <div style={{ position: 'relative' }}>
@@ -365,7 +361,7 @@ const Dashboard = () => {
                   <span 
                     key={tf} 
                     style={{ cursor: 'pointer', color: timeFilter === tf ? 'var(--text-primary)' : 'var(--text-muted)', fontWeight: timeFilter === tf ? 700 : 500 }}
-                    onClick={() => setTimeFilter(tf)}
+                    onClick={() => setTimeFilter(tf as TimeFilter)}
                   >
                     {tf}
                   </span>

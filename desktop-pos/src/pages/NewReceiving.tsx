@@ -5,6 +5,7 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { useAuth } from '../context/AuthContext';
 import { addReceivingLocal } from '../firebase/localReceivingsService';
+import { updateInventoryItem } from '../firebase/inventoryService';
 
 const NewReceiving = ({ inventory, setInventory, suppliers, showToast }: { inventory: any[], setInventory: (inv: any[]) => void, suppliers: any[], showToast?: (m: string, t?: 'success'|'error') => void }) => {
   const navigate = useNavigate();
@@ -76,21 +77,34 @@ const NewReceiving = ({ inventory, setInventory, suppliers, showToast }: { inven
       alert("Debes agregar al menos un producto.");
       return;
     }
-    // Actualizar inventario (sumar stock real según la caja o unidad recibida)
-    const updatedInventory = inventory.map(invProduct => {
-      const receivedItem = items.find(i => i.id === invProduct.id);
-      if (receivedItem) {
+    // Actualizar inventario (sumar stock real, costo y proveedor)
+    const updatedInventory = [...inventory];
+    for (const receivedItem of items) {
+      const invIndex = updatedInventory.findIndex(i => i.id === receivedItem.id);
+      if (invIndex !== -1) {
+        const invProduct = updatedInventory[invIndex];
         const isPackage = receivedItem.entryType === 'package';
         const addedUnits = isPackage ? receivedItem.quantity * (receivedItem.unitsPerPackage || 1) : receivedItem.quantity;
-        return {
+        
+        const updatedProduct = {
           ...invProduct,
           stock: (invProduct.stock || 0) + addedUnits,
-          // Actualizamos el costPrice al último costo recibido si es que cambió
-          costPrice: isPackage ? receivedItem.cost / (receivedItem.unitsPerPackage || 1) : receivedItem.cost
+          costPrice: isPackage ? receivedItem.cost / (receivedItem.unitsPerPackage || 1) : receivedItem.cost,
+          supplier: selectedSupplier.name
         };
+        
+        updatedInventory[invIndex] = updatedProduct;
+        
+        // Guardar en Firebase
+        if (updatedProduct.id) {
+          try {
+            await updateInventoryItem(updatedProduct.id, updatedProduct);
+          } catch (error) {
+            console.error("Error actualizando producto en FB:", error);
+          }
+        }
       }
-      return invProduct;
-    });
+    }
     setInventory(updatedInventory);
 
     // Guardar la recepción localmente

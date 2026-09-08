@@ -82,3 +82,11 @@ export const deleteAndNotify = <T extends { id: string }>(collectionName: string
   deleteLocalItem(collectionName, id);
   notifyLocalChange(collectionName);
 };
+
+export const getLocalStoreSettings = () => {
+  try {
+    const stored = localStorage.getItem('schopy_store_settings');
+    if (stored) return JSON.parse(stored);
+  } catch(e) {}
+  return {};
+};

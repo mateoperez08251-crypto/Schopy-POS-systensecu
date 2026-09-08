@@ -43,15 +43,31 @@ const MechanicDashboard = () => {
   const totalGanancias = totalVentas * ((selectedMechanic?.commissionRate || 0) / 100);
   const totalServicios = mechanicSales.length;
 
-  // Grafico simulado de ultimos 7 dias (usaríamos la fecha real de la venta)
-  const chartData = [
-    { name: 'Lunes', ventas: Math.floor(Math.random() * totalVentas / 3), ganancias: Math.floor(Math.random() * totalGanancias / 3) },
-    { name: 'Martes', ventas: Math.floor(Math.random() * totalVentas / 3), ganancias: Math.floor(Math.random() * totalGanancias / 3) },
-    { name: 'Miércoles', ventas: Math.floor(Math.random() * totalVentas / 3), ganancias: Math.floor(Math.random() * totalGanancias / 3) },
-    { name: 'Jueves', ventas: Math.floor(Math.random() * totalVentas / 3), ganancias: Math.floor(Math.random() * totalGanancias / 3) },
-    { name: 'Viernes', ventas: Math.floor(Math.random() * totalVentas / 3), ganancias: Math.floor(Math.random() * totalGanancias / 3) },
-    { name: 'Sábado', ventas: totalVentas > 0 ? totalVentas / 4 : 0, ganancias: totalGanancias > 0 ? totalGanancias / 4 : 0 },
-  ];
+  // Gráfico real de últimos 7 días usando fechas reales
+  const DAY_NAMES = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+  const commRate = (selectedMechanic?.commissionRate || 0) / 100;
+  const chartData = (() => {
+    const days: Record<string, { ventas: number; ganancias: number }> = {};
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      const key = d.toISOString().slice(0, 10);
+      days[key] = { ventas: 0, ganancias: 0 };
+    }
+    mechanicSales.forEach(sale => {
+      const sd = sale.createdAt ? new Date(sale.createdAt) : (sale.date ? new Date(sale.date) : new Date());
+      const key = sd.toISOString().slice(0, 10);
+      if (days[key] !== undefined) {
+        days[key].ventas += (sale.total || 0);
+        days[key].ganancias += (sale.total || 0) * commRate;
+      }
+    });
+    return Object.entries(days).map(([key, val]) => ({
+      name: DAY_NAMES[new Date(key + 'T00:00:00').getDay()],
+      ventas: Math.round(val.ventas),
+      ganancias: Math.round(val.ganancias)
+    }));
+  })();
 
   return (
     <div style={{ padding: '24px', height: '100%', overflowY: 'auto' }}>

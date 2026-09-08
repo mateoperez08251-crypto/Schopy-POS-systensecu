@@ -67,7 +67,7 @@ const StaffFormModal = ({ isOpen, onClose, onSubmit }: { isOpen: boolean, onClos
           <div style={{ display: 'grid', gap: '8px' }}>
             <label style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)' }}>PIN de Acceso</label>
             <input 
-              type="text" value={formData.pin} onChange={e => setFormData({...formData, pin: e.target.value.replace(/\D/g, '').slice(0, 4)})}
+              type="password" value={formData.pin} onChange={e => setFormData({...formData, pin: e.target.value.replace(/\D/g, '').slice(0, 4)})}
               placeholder="4 dígitos numéricos (Opcional)"
               style={{ background: 'var(--bg-app)', border: '1px solid var(--border-medium)', color: 'var(--text-primary)', padding: '10px 12px', borderRadius: 'var(--radius-md)', outline: 'none' }} 
             />

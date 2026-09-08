@@ -124,9 +124,6 @@ const LocalLogin = () => {
                 <div style={{ textAlign: 'center' }}>
                   <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0, textTransform: 'capitalize' }}>{u.name}</h3>
                   <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>{u.role}</span>
-                  <div style={{ marginTop: '8px', padding: '4px 8px', background: 'var(--accent-primary)', color: 'white', borderRadius: '4px', fontSize: '0.8rem', fontWeight: 'bold' }}>
-                    PIN: {u.pin}
-                  </div>
                 </div>
               </div>
             ))}
@@ -321,29 +318,6 @@ const LocalLogin = () => {
             {isFirstTime ? 'Crear Administrador' : 'Entrar'}
           </button>
           
-          {!isFirstTime && selectedUser && (
-            <button
-              type="button"
-              onClick={handleBypass}
-              style={{
-                width: '100%',
-                marginTop: '12px',
-                height: '48px',
-                fontSize: '0.9rem',
-                background: 'transparent',
-                border: '1px dashed var(--border-medium)',
-                color: 'var(--text-secondary)',
-                borderRadius: '8px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '8px',
-                cursor: 'pointer'
-              }}
-            >
-              <Unlock size={16} /> Restablecer y entrar sin PIN
-            </button>
-          )}
         </form>
       </div>
     </div>
