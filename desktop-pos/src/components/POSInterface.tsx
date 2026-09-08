@@ -7,28 +7,18 @@ import { logAuditEvent } from '../firebase/auditService';
 
 const categories = ['Todos', 'Bebidas', 'Snacks', 'Abarrotes', 'Limpieza', 'Electrónica'];
 
-const PRODUCT_CATALOG = [
-  { id: 1, name: 'Coca Cola 2L', price: 2.50, code: '7501055310883', category: 'Bebidas', color: '#EF4444' },
-  { id: 2, name: 'Sabritas Original 45g', price: 1.20, code: '7501011133906', category: 'Snacks', color: '#F59E0B' },
-  { id: 3, name: 'Atún Dolores en Agua', price: 1.80, code: '7501041810502', category: 'Abarrotes', color: '#3B82F6' },
-  { id: 4, name: 'Agua Ciel 1L', price: 1.00, code: '7501055310884', category: 'Bebidas', color: '#60A5FA' },
-  { id: 5, name: 'Galletas Oreo 114g', price: 1.50, code: '7501011133907', category: 'Snacks', color: '#2563EB' },
-  { id: 6, name: 'Jabón Zote Blanco', price: 0.90, code: '7501041810503', category: 'Limpieza', color: '#EC4899' },
-  { id: 7, name: 'Cloro Cloralex 1L', price: 1.30, code: '7501041810504', category: 'Limpieza', color: '#10B981' },
-  { id: 8, name: 'Pilas Duracell AA (4)', price: 4.50, code: '7501041810505', category: 'Electrónica', color: '#B45309' },
-  { id: 9, name: 'Frijoles La Costeña', price: 1.10, code: '7501041810506', category: 'Abarrotes', color: '#92400E' },
-  { id: 10, name: 'Gatorade Naranja', price: 1.60, code: '7501041810507', category: 'Bebidas', color: '#F97316' },
-];
+
 
 interface POSInterfaceProps {
   salesHistory: any[];
   setSalesHistory: (val: any[]) => void;
+  inventory: any[];
   isVoucherMode: boolean;
   onOpenVoucher?: () => void;
   onCloseVoucher?: () => void;
 }
 
-const POSInterface: React.FC<POSInterfaceProps> = ({ salesHistory, setSalesHistory, isVoucherMode, onOpenVoucher, onCloseVoucher }) => {
+const POSInterface: React.FC<POSInterfaceProps> = ({ salesHistory, setSalesHistory, inventory, isVoucherMode, onOpenVoucher, onCloseVoucher }) => {
   const navigate = useNavigate();
   const { currentUser, userData } = useAuth();
   const currency = userData?.currency || '$';
@@ -58,9 +48,9 @@ const POSInterface: React.FC<POSInterfaceProps> = ({ salesHistory, setSalesHisto
 
   const searchInputRef = useRef<HTMLInputElement>(null);
 
-  const filteredProducts = searchTerm.trim() === '' ? [] : PRODUCT_CATALOG.filter(p => 
+  const filteredProducts = searchTerm.trim() === '' ? [] : inventory.filter(p => 
     (selectedCategory === 'Todos' || p.category === selectedCategory) &&
-    (p.name.toLowerCase().includes(searchTerm.toLowerCase()) || p.code.includes(searchTerm))
+    (p.name.toLowerCase().includes(searchTerm.toLowerCase()) || (p.code && p.code.includes(searchTerm)))
   );
 
   const subtotal = cart.reduce((acc, item) => acc + ((item.price * item.quantity) * (1 - (item.discount || 0)/100)), 0);

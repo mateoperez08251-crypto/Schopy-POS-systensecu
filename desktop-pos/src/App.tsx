@@ -97,8 +97,8 @@ function App() {
           <TopNav title="" />
           <Routes>
             <Route path="/" element={<Dashboard />} />
-            <Route path="/pos" element={<POS salesHistory={salesHistory} setSalesHistory={setSalesHistory} />} />
-            <Route path="/voucher-pos" element={<VoucherPOS salesHistory={salesHistory} setSalesHistory={setSalesHistory} />} />
+            <Route path="/pos" element={<POS salesHistory={salesHistory} setSalesHistory={setSalesHistory} inventory={inventory} />} />
+            <Route path="/voucher-pos" element={<VoucherPOS salesHistory={salesHistory} setSalesHistory={setSalesHistory} inventory={inventory} />} />
             <Route path="/sales-history" element={<SalesHistory salesHistory={salesHistory} />} />
             <Route path="/cash-register" element={<CashRegister salesHistory={salesHistory} setSalesHistory={setSalesHistory} showToast={showToast} />} />
             <Route path="/inventory" element={<Inventory inventory={inventory} setInventory={setInventory} showToast={showToast} />} />
