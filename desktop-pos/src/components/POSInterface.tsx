@@ -91,7 +91,7 @@ const POSInterface: React.FC<POSInterfaceProps> = ({ salesHistory, setSalesHisto
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [cart, isCheckoutOpen, isPaymentModalOpen, modifierItem, checkoutStep, paymentMethod, amountReceived, total]);
 
-  const addToCart = (product: typeof PRODUCT_CATALOG[0]) => {
+  const addToCart = (product: any) => {
     setCart(prev => {
       const exists = prev.find(item => item.id === product.id);
       if (exists) return prev.map(item => item.id === product.id ? { ...item, quantity: item.quantity + 1 } : item);
