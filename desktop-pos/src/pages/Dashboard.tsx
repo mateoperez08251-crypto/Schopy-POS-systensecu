@@ -12,9 +12,11 @@ import {
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { useDashboardData } from '../hooks/useDashboardData';
+import { useAuth } from '../context/AuthContext';
 
 const Dashboard = () => {
   const { data, loading } = useDashboardData();
+  const { userData } = useAuth();
   const navigate = useNavigate();
   
   // Estados para las interacciones
@@ -59,7 +61,7 @@ const Dashboard = () => {
       doc.setTextColor(255, 255, 255);
       doc.setFontSize(16);
       doc.setFont('helvetica', 'bold');
-      doc.text('SCHOPY POS', 36, 17);
+      doc.text(userData?.companyName || 'SCHOPY POS', 36, 17);
       
       doc.setFontSize(10);
       doc.setFont('helvetica', 'normal');
@@ -424,7 +426,7 @@ const Dashboard = () => {
                   <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: 'var(--text-muted)' }} tickFormatter={(v) => `${Math.round(v/1000)}k`} />
                   <RechartsTooltip 
                     cursor={{ fill: 'var(--bg-app)' }} 
-                    formatter={(value: number) => [`$${value.toLocaleString()}`, '']}
+                    formatter={(value: any) => [`$${Number(value).toLocaleString()}`, '']}
                     contentStyle={{ background: 'var(--bg-card)', border: '1px solid var(--border-medium)', borderRadius: '8px', fontSize: '0.85rem' }}
                   />
                   <Bar dataKey="ingresos" fill="#6366F1" radius={[4, 4, 0, 0]} name="Ingresos" />

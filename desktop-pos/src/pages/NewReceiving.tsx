@@ -46,7 +46,7 @@ const NewReceiving = ({ inventory, setInventory, suppliers, showToast }: { inven
 
   const totalCost = items.reduce((sum, item) => sum + (item.quantity * item.cost), 0);
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!selectedSupplier) {
       alert("Debes seleccionar un proveedor.");
       return;
@@ -75,18 +75,35 @@ const NewReceiving = ({ inventory, setInventory, suppliers, showToast }: { inven
     // Generar PDF
     const doc = new jsPDF();
     
+    // Cargar logo
+    const img = new Image();
+    img.src = '/app-icon.png';
+    await new Promise((resolve) => {
+      img.onload = resolve;
+      img.onerror = resolve;
+    });
+    
     // Configuración inicial y marca de agua / estilo corporativo
-    doc.setFillColor(79, 70, 229); // Accent primary
-    doc.rect(0, 0, 210, 40, 'F');
+    doc.setFillColor(15, 23, 42); // Accent primary moderno
+    doc.rect(0, 0, 210, 30, 'F');
     
+    try {
+      doc.addImage(img, 'PNG', 14, 6, 18, 18);
+    } catch (e) {}
+
     doc.setTextColor(255, 255, 255);
-    doc.setFontSize(22);
+    doc.setFontSize(16);
     doc.setFont('helvetica', 'bold');
-    doc.text('COMPROBANTE DE ENTRADA', 14, 25);
+    doc.text('SCHOPY POS', 36, 18);
     
-    doc.setFontSize(10);
+    doc.setFontSize(12);
     doc.setFont('helvetica', 'normal');
-    doc.text(`Fecha: ${new Date().toLocaleDateString('es-DO')} ${new Date().toLocaleTimeString('es-DO')}`, 14, 32);
+    doc.setTextColor(148, 163, 184); // slate-400
+    doc.text('COMPROBANTE DE ENTRADA', 196, 18, { align: 'right' });
+
+    doc.setTextColor(50, 50, 50);
+    doc.setFontSize(10);
+    doc.text(`Fecha: ${new Date().toLocaleDateString('es-DO')} ${new Date().toLocaleTimeString('es-DO')}`, 14, 40);
 
     // Datos del Proveedor
     doc.setTextColor(50, 50, 50);
@@ -142,14 +159,14 @@ const NewReceiving = ({ inventory, setInventory, suppliers, showToast }: { inven
     doc.setFont('helvetica', 'bold');
     doc.text('Resumen de Entrada', 120, finalY + 15);
     doc.setFontSize(14);
-    doc.setTextColor(79, 70, 229);
+    doc.setTextColor(15, 23, 42); // slate-900
     doc.text(`Costo Total: $${totalCost.toLocaleString(undefined, { minimumFractionDigits: 2 })}`, 120, finalY + 23);
 
-    // Abrir el PDF en una nueva pestaña (para imprimir o descargar)
-    const pdfBlobUrl = doc.output('bloburl');
-    window.open(pdfBlobUrl, '_blank');
+    // Descargar en lugar de abrir pestaña
+    const pdfFilename = `Comprobante_Entrada_${new Date().getTime()}.pdf`;
+    doc.save(pdfFilename);
     
-    if (showToast) showToast('Entrada guardada y PDF generado correctamente', 'success');
+    if (showToast) showToast('Entrada guardada y PDF descargado correctamente', 'success');
     // Navegar
     navigate('/receivings');
   };
