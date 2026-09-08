@@ -24,6 +24,7 @@ import Staff from './pages/Staff';
 import Setup from './pages/Setup';
 import Expired from './pages/Expired';
 import Settings from './pages/Settings';
+import Help from './pages/Help';
 // Pantalla de Cierre de Caja
 import CashRegister from './pages/CashRegister';
 
@@ -108,6 +109,7 @@ function App() {
             <Route path="/receivings" element={<Receivings suppliers={suppliers} />} />
             <Route path="/audit" element={<Audit />} />
             <Route path="/settings" element={<Settings />} />
+            <Route path="/help" element={<Help />} />
             <Route path="*" element={<div style={{padding: '40px', flex:1}}><h2>Página en construcción</h2></div>} />
           </Routes>
         </div>

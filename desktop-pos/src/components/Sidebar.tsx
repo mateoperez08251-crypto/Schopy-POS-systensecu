@@ -178,10 +178,10 @@ const Sidebar = () => {
           <Settings size={18} style={{ flexShrink: 0 }} />
           {!isCollapsed && 'Configuración'}
         </NavLink>
-        <div className="nav-item" style={{ justifyContent: isCollapsed ? 'center' : 'flex-start' }} title={isCollapsed ? 'Centro de Ayuda' : undefined}>
+        <NavLink to="/help" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} style={{ textDecoration: 'none', justifyContent: isCollapsed ? 'center' : 'flex-start' }} title={isCollapsed ? 'Centro de Ayuda' : undefined} onClick={() => { setExpandedMenu(null); setIsCollapsed(true); }}>
           <HelpCircle size={18} style={{ flexShrink: 0 }} />
           {!isCollapsed && 'Centro de Ayuda'}
-        </div>
+        </NavLink>
         
         <div style={{ marginTop: '16px' }}>
           <button className="logout-btn" style={{ justifyContent: isCollapsed ? 'center' : undefined }}>
