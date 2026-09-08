@@ -163,16 +163,17 @@ const buildDashboard = (salesList: any[], mechanicsList: any[], filter: TimeFilt
   };
 };
 
-export const useDashboardData = (filter: TimeFilter = '1 A') => {
+export const useDashboardData = (companyId: string | null, filter: TimeFilter = '1 A') => {
   const [rawSales, setRawSales] = useState<any[]>([]);
   const [rawMechanics, setRawMechanics] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const salesUnsub = subscribeToSales((d) => { setRawSales(d); setLoading(false); });
-    const mechUnsub = subscribeToMechanics((d) => { setRawMechanics(d); });
+    if (!companyId) return;
+    const salesUnsub = subscribeToSales(companyId, (d) => { setRawSales(d); setLoading(false); });
+    const mechUnsub = subscribeToMechanics(companyId, (d) => { setRawMechanics(d); });
     return () => { salesUnsub(); mechUnsub(); };
-  }, []);
+  }, [companyId]);
 
   const data = buildDashboard(rawSales, rawMechanics, filter);
   return { data, loading };

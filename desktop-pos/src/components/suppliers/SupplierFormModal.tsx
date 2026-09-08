@@ -1,13 +1,14 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X, Building2, User, Phone, Mail, Tag, Save, FileText } from 'lucide-react';
 
 interface SupplierFormModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSubmit: (data: any) => void;
+  initialData?: any;
 }
 
-const SupplierFormModal: React.FC<SupplierFormModalProps> = ({ isOpen, onClose, onSubmit }) => {
+const SupplierFormModal: React.FC<SupplierFormModalProps> = ({ isOpen, onClose, onSubmit, initialData }) => {
   const [formData, setFormData] = useState({
     name: '',
     rnc: '',
@@ -16,6 +17,23 @@ const SupplierFormModal: React.FC<SupplierFormModalProps> = ({ isOpen, onClose, 
     email: '',
     category: ''
   });
+
+  useEffect(() => {
+    if (isOpen) {
+      if (initialData) {
+        setFormData(initialData);
+      } else {
+        setFormData({
+          name: '',
+          rnc: '',
+          contact: '',
+          phone: '',
+          email: '',
+          category: ''
+        });
+      }
+    }
+  }, [isOpen, initialData]);
 
   if (!isOpen) return null;
 

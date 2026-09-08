@@ -7,7 +7,7 @@ import ConfirmDeleteModal from '../components/inventory/ConfirmDeleteModal';
 import { useAuth } from '../context/AuthContext';
 import { addInventoryItem, updateInventoryItem, deleteInventoryItem } from '../firebase/inventoryService';
 
-const Inventory = ({ inventory, setInventory, showToast }: { inventory: any[], setInventory: (inv: any[]) => void, showToast?: (m: string, t?: 'success'|'error'|'info') => void }) => {
+const Inventory = ({ inventory, setInventory, suppliers, showToast }: { inventory: any[], setInventory: (inv: any[]) => void, suppliers?: any[], showToast?: (m: string, t?: 'success'|'error'|'info') => void }) => {
   const { userData } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
   const [supplierTerm, setSupplierTerm] = useState('');
@@ -496,6 +496,7 @@ const Inventory = ({ inventory, setInventory, showToast }: { inventory: any[], s
         onClose={() => setIsModalOpen(false)}
         onSave={handleSaveProduct}
         initialData={editingProduct}
+        suppliers={suppliers}
       />
 
       <ConfirmDeleteModal 

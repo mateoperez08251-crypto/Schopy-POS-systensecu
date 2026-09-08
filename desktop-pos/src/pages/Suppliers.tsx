@@ -1,25 +1,34 @@
 import React, { useState } from 'react';
-import { Search, Plus, Filter, MoreVertical, Building2, Mail, Phone, MapPin, Truck } from 'lucide-react';
+import { Search, Plus, Filter, Edit, Building2, Mail, Phone, MapPin, Truck, FileText } from 'lucide-react';
 import SupplierFormModal from '../components/suppliers/SupplierFormModal';
 
 const Suppliers = ({ suppliers, setSuppliers, showToast }: { suppliers: any[], setSuppliers: (sups: any[]) => void, showToast?: (m: string, t?: 'success'|'error') => void }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingSupplier, setEditingSupplier] = useState<any>(null);
 
   const handleAddSupplier = (data: any) => {
-    const newSupplier = {
-      id: suppliers.length + 1,
-      name: data.name,
-      contact: data.contact,
-      phone: data.phone,
-      email: data.email,
-      category: data.category,
-      status: 'Activo',
-      pendingBalance: 0
-    };
-    setSuppliers([...suppliers, newSupplier]);
-    if (showToast) showToast('Proveedor agregado exitosamente', 'success');
+    if (editingSupplier) {
+      const updated = suppliers.map(s => s.id === editingSupplier.id ? { ...s, ...data } : s);
+      setSuppliers(updated);
+      if (showToast) showToast('Proveedor actualizado exitosamente', 'success');
+    } else {
+      const newSupplier = {
+        id: suppliers.length + 1,
+        name: data.name,
+        rnc: data.rnc,
+        contact: data.contact,
+        phone: data.phone,
+        email: data.email,
+        category: data.category,
+        status: 'Activo',
+        pendingBalance: 0
+      };
+      setSuppliers([...suppliers, newSupplier]);
+      if (showToast) showToast('Proveedor agregado exitosamente', 'success');
+    }
     setIsModalOpen(false);
+    setEditingSupplier(null);
   };
 
   const filteredSuppliers = suppliers.filter(s => 
@@ -39,7 +48,10 @@ const Suppliers = ({ suppliers, setSuppliers, showToast }: { suppliers: any[], s
         <button 
           className="btn btn-primary" 
           style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
-          onClick={() => setIsModalOpen(true)}
+          onClick={() => {
+            setEditingSupplier(null);
+            setIsModalOpen(true);
+          }}
         >
           <Plus size={18} /> Nuevo Proveedor
         </button>
@@ -107,13 +119,26 @@ const Suppliers = ({ suppliers, setSuppliers, showToast }: { suppliers: any[], s
                 </div>
                 <div>
                   <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-primary)' }}>{supplier.name}</h3>
-                  <span style={{ fontSize: '0.75rem', fontWeight: 600, color: supplier.status === 'Activo' ? 'var(--accent-success)' : 'var(--text-muted)', background: 'var(--bg-app)', padding: '2px 8px', borderRadius: '12px', display: 'inline-block', marginTop: '4px' }}>
-                    {supplier.status}
-                  </span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px' }}>
+                    <span style={{ fontSize: '0.75rem', fontWeight: 600, color: supplier.status === 'Activo' ? 'var(--accent-success)' : 'var(--text-muted)', background: 'var(--bg-app)', padding: '2px 8px', borderRadius: '12px', display: 'inline-block' }}>
+                      {supplier.status}
+                    </span>
+                    {supplier.rnc && (
+                      <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', background: 'var(--bg-app)', padding: '2px 8px', borderRadius: '12px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <FileText size={10} /> {supplier.rnc}
+                      </span>
+                    )}
+                  </div>
                 </div>
               </div>
-              <button style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}>
-                <MoreVertical size={20} />
+              <button 
+                onClick={() => {
+                  setEditingSupplier(supplier);
+                  setIsModalOpen(true);
+                }}
+                style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}
+              >
+                <Edit size={20} />
               </button>
             </div>
 
@@ -149,8 +174,12 @@ const Suppliers = ({ suppliers, setSuppliers, showToast }: { suppliers: any[], s
 
       <SupplierFormModal 
         isOpen={isModalOpen} 
-        onClose={() => setIsModalOpen(false)} 
-        onSubmit={handleAddSupplier} 
+        onClose={() => {
+          setIsModalOpen(false);
+          setEditingSupplier(null);
+        }} 
+        onSubmit={handleAddSupplier}
+        initialData={editingSupplier}
       />
     </div>
   );

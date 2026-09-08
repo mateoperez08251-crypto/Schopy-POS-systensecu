@@ -16,8 +16,8 @@ import { useAuth } from '../context/AuthContext';
 
 const Dashboard = () => {
   const [timeFilter, setTimeFilter] = useState<TimeFilter>('1 A');
-  const { data, loading } = useDashboardData(timeFilter);
-  const { userData } = useAuth();
+  const { userData, companyId } = useAuth();
+  const { data, loading } = useDashboardData(companyId, timeFilter);
   const navigate = useNavigate();
   
   // Estados para las interacciones

@@ -25,11 +25,12 @@ interface ProductFormModalProps {
   onClose: () => void;
   onSave: (product: any) => void;
   initialData?: Product | null;
+  suppliers?: any[];
 }
 
 const CATEGORIES = ['Frenos', 'Suspensión y Dirección', 'Motor', 'Transmisión', 'Eléctrico', 'Líquidos y Lubricantes', 'Accesorios'];
 
-const ProductFormModal: React.FC<ProductFormModalProps> = ({ isOpen, onClose, onSave, initialData }) => {
+const ProductFormModal: React.FC<ProductFormModalProps> = ({ isOpen, onClose, onSave, initialData, suppliers = [] }) => {
   const [isCategoryOpen, setIsCategoryOpen] = useState(false);
   const [formData, setFormData] = useState<Product>({
     name: '',
@@ -236,13 +237,18 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({ isOpen, onClose, on
             {/* Suplidor */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '8px' }}>
               <label style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Suplidor / Proveedor (Opcional)</label>
-              <input 
-                type="text" 
+              <select 
                 value={formData.supplier || ''}
                 onChange={e => setFormData({...formData, supplier: e.target.value})}
-                placeholder="Nombre del proveedor"
                 style={{ background: 'var(--bg-app)', border: '1px solid var(--border-medium)', color: 'var(--text-primary)', padding: '10px 12px', borderRadius: 'var(--radius-md)', outline: 'none' }} 
-              />
+              >
+                <option value="">Seleccione un proveedor...</option>
+                {suppliers.map(sup => (
+                  <option key={sup.id} value={sup.name}>
+                    {sup.name} {sup.rnc ? `(RNC: ${sup.rnc})` : ''} {sup.phone ? `- Tel: ${sup.phone}` : ''}
+                  </option>
+                ))}
+              </select>
             </div>
 
             {/* PRECIOS Y COSTO */}

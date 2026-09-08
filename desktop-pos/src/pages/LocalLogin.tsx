@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { Shield, AlertCircle, User, ArrowLeft, Unlock } from 'lucide-react';
-import { getAllStaffLocal, updateStaffLocal } from '../firebase/localStaffService';
+import { Shield, AlertCircle, User, ArrowLeft, Unlock, LogOut } from 'lucide-react';
+import { updateStaffLocal } from '../firebase/localStaffService';
 
 const LocalLogin = () => {
-  const { localLogin, forceLogin, hasAdmin, createInitialAdmin } = useAuth();
+  const { localLogin, forceLogin, hasAdmin, createInitialAdmin, staffList, firebaseLogout, companyId } = useAuth();
   const [pin, setPin] = useState('');
   const [error, setError] = useState('');
   const [isFirstTime, setIsFirstTime] = useState(false);
@@ -16,10 +16,9 @@ const LocalLogin = () => {
   useEffect(() => {
     setIsFirstTime(!hasAdmin);
     if (hasAdmin) {
-      const staffList = getAllStaffLocal();
       setUsers(staffList);
     }
-  }, [hasAdmin]);
+  }, [hasAdmin, staffList]);
 
   const handleKeyPress = (key: string) => {
     if (pin.length < 4) {
@@ -63,7 +62,8 @@ const LocalLogin = () => {
   const handleBypass = async () => {
     if (selectedUser) {
       try {
-        await updateStaffLocal(selectedUser.id, { ...selectedUser, pin: '' });
+        if (!companyId) throw new Error('No hay empresa');
+        await updateStaffLocal(selectedUser.id, { ...selectedUser, pin: '', companyId });
         selectedUser.pin = '';
         forceLogin(selectedUser);
       } catch (err: any) {
@@ -83,7 +83,13 @@ const LocalLogin = () => {
         padding: '24px'
       }}>
         <div style={{ maxWidth: '800px', width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '32px' }}>
-          <div style={{ textAlign: 'center' }}>
+          <div style={{ textAlign: 'center', position: 'relative' }}>
+            <button 
+              onClick={firebaseLogout}
+              style={{ position: 'absolute', top: '-10px', right: '-40px', background: 'transparent', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.8rem' }}
+            >
+              <LogOut size={16} /> Cerrar Empresa
+            </button>
             <div style={{ width: '80px', height: '80px', background: 'var(--accent-primary)', borderRadius: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 24px' }}>
               <Shield size={40} color="white" />
             </div>

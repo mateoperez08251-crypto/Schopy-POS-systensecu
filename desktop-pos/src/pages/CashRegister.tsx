@@ -162,13 +162,13 @@ const CashRegister: React.FC<CashRegisterProps> = ({ salesHistory = [], setSales
         <head>
           <title>Corte de Caja</title>
           <style>
+            @page { margin: 0; }
             body { font-family: 'Courier New', Courier, monospace; font-size: 12px; margin: 0; padding: 10px; width: 80mm; color: #000; }
             .center { text-align: center; }
             .bold { font-weight: bold; }
             .line { border-bottom: 1px dashed #000; margin: 10px 0; }
             .row { display: flex; justify-content: space-between; margin-bottom: 5px; }
             .logo { width: 40px; height: 40px; margin: 0 auto 5px auto; display: block; }
-            @media print { body { width: 100%; margin: 0; padding: 0; } }
           </style>
         </head>
         <body>

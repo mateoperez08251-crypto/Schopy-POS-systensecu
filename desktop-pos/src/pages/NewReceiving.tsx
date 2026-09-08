@@ -10,7 +10,7 @@ import { updateInventoryItem } from '../firebase/inventoryService';
 const NewReceiving = ({ inventory, setInventory, suppliers, showToast }: { inventory: any[], setInventory: (inv: any[]) => void, suppliers: any[], showToast?: (m: string, t?: 'success'|'error') => void }) => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { userData } = useAuth();
+  const { userData, companyId } = useAuth();
   const [supplierSearch, setSupplierSearch] = useState('');
   const [selectedSupplier, setSelectedSupplier] = useState<any>(null);
   const [showSupplierDropdown, setShowSupplierDropdown] = useState(false);
@@ -108,15 +108,17 @@ const NewReceiving = ({ inventory, setInventory, suppliers, showToast }: { inven
     }
     setInventory(updatedInventory);
 
-    // Guardar la recepción localmente
-    addReceivingLocal({
-      date: new Date().toISOString(),
-      supplier: selectedSupplier.name,
-      items: items.length,
-      totalCost: totalCost,
-      user: userData?.name || 'Admin',
-      notes: orderNotes
-    });
+    // Guardar la recepción en Firestore
+    if (companyId) {
+      await addReceivingLocal(companyId, {
+        date: new Date().toISOString(),
+        supplier: selectedSupplier.name,
+        items: items.length,
+        totalCost: totalCost,
+        user: userData?.name || 'Admin',
+        notes: orderNotes
+      });
+    }
 
     // Generar PDF
     const doc = new jsPDF();

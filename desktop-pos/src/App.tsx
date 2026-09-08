@@ -15,6 +15,7 @@ import VoucherPOS from './pages/VoucherPOS';
 import Inventory from './pages/Inventory';
 import Audit from './pages/Audit';
 import SalesHistory from './pages/SalesHistory';
+import CompanyAuthScreen from './pages/CompanyAuthScreen';
 import LocalLogin from './pages/LocalLogin';
 import Suppliers from './pages/Suppliers';
 import Receivings from './pages/Receivings';
@@ -44,17 +45,18 @@ function App() {
   const [toast, setToast] = useState<{message: string, type: 'success' | 'error' | 'info'} | null>(null);
   const [isRestockModalOpen, setIsRestockModalOpen] = useState(false);
 
-  const { currentUser, userData } = useAuth();
+  const { firebaseUser, companyId, currentUser, userData } = useAuth();
 
   React.useEffect(() => {
-    const dummyCompanyId = 'local';
-    const unsubInventory = subscribeToInventory(dummyCompanyId, (items) => {
+    if (!companyId) return;
+    
+    const unsubInventory = subscribeToInventory(companyId, (items) => {
       setInventory(items);
     });
-    const unsubCustomers = subscribeToCustomers(dummyCompanyId, (items) => {
+    const unsubCustomers = subscribeToCustomers(companyId, (items) => {
       setCustomers(items);
     });
-    const unsubSales = subscribeToSales((items) => {
+    const unsubSales = subscribeToSales(companyId, (items) => {
       setSalesHistory(items.sort((a: any, b: any) => {
         const da = a.createdAt || a.date || '';
         const db = b.createdAt || b.date || '';
@@ -73,6 +75,10 @@ function App() {
     setTimeout(() => setToast(null), 3000);
   };
 
+  if (!firebaseUser) {
+    return <CompanyAuthScreen />;
+  }
+
   if (!currentUser) {
     return <LocalLogin />;
   }
@@ -88,9 +94,9 @@ function App() {
             <Route path="/" element={<Dashboard />} />
             <Route path="/pos" element={<POS salesHistory={salesHistory} setSalesHistory={setSalesHistory} inventory={inventory} />} />
             <Route path="/voucher-pos" element={<VoucherPOS salesHistory={salesHistory} setSalesHistory={setSalesHistory} inventory={inventory} />} />
-            <Route path="/sales-history" element={<SalesHistory salesHistory={salesHistory} />} />
+            <Route path="/sales-history" element={<SalesHistory salesHistory={salesHistory} inventory={inventory} />} />
             <Route path="/cash-register" element={<CashRegister salesHistory={salesHistory} setSalesHistory={setSalesHistory} showToast={showToast} />} />
-            <Route path="/inventory" element={<Inventory inventory={inventory} setInventory={setInventory} showToast={showToast} />} />
+            <Route path="/inventory" element={<Inventory inventory={inventory} setInventory={setInventory} suppliers={suppliers} showToast={showToast} />} />
             <Route path="/suppliers" element={<Suppliers suppliers={suppliers} setSuppliers={setSuppliers} showToast={showToast} />} />
             <Route path="/customers" element={<Customers customers={customers} setCustomers={setCustomers} showToast={showToast} />} />
             <Route path="/staff" element={<Staff showToast={showToast} />} />

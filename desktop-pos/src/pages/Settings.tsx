@@ -21,6 +21,9 @@ const Settings = () => {
   
   const [ticketFooter, setTicketFooter] = useState('¡Gracias por su compra!');
   
+  const [printerName, setPrinterName] = useState('');
+  const [autoOpenDrawer, setAutoOpenDrawer] = useState(true);
+  
   const [requirePinForDiscount, setRequirePinForDiscount] = useState(false);
   const [requirePinForDelete, setRequirePinForDelete] = useState(false);
 
@@ -44,6 +47,8 @@ const Settings = () => {
           if (data.taxRate !== undefined) setTaxRate(data.taxRate.toString());
           if (data.taxEnabled !== undefined) setTaxEnabled(data.taxEnabled);
           if (data.ticketFooter) setTicketFooter(data.ticketFooter);
+          if (data.printerName) setPrinterName(data.printerName);
+          if (data.autoOpenDrawer !== undefined) setAutoOpenDrawer(data.autoOpenDrawer);
           if (data.requirePinForDiscount !== undefined) setRequirePinForDiscount(data.requirePinForDiscount);
           if (data.requirePinForDelete !== undefined) setRequirePinForDelete(data.requirePinForDelete);
         }
@@ -72,6 +77,8 @@ const Settings = () => {
         taxRate: parseFloat(taxRate) || 0,
         taxEnabled,
         ticketFooter,
+        printerName,
+        autoOpenDrawer,
         requirePinForDiscount,
         requirePinForDelete
       };
@@ -242,6 +249,19 @@ const Settings = () => {
           <h2 style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '8px', borderBottom: '1px solid var(--border-light)', paddingBottom: '12px' }}>
             <Printer size={20} color="var(--accent-primary)" /> Configuración de Impresión
           </h2>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
+            <div>
+              <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '6px' }}>Nombre de Impresora Térmica en Windows</label>
+              <input type="text" value={printerName} onChange={e => setPrinterName(e.target.value)} placeholder="Ej. XP-80C o POS-58" style={{ width: '100%', padding: '10px 12px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-medium)', background: 'var(--bg-app)', color: 'var(--text-primary)', outline: 'none' }} />
+              <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '6px' }}>Requerido para abrir la caja registradora de forma directa.</p>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'flex-start', paddingTop: '32px' }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', whiteSpace: 'nowrap', fontSize: '0.9rem', fontWeight: 600 }}>
+                <input type="checkbox" checked={autoOpenDrawer} onChange={e => setAutoOpenDrawer(e.target.checked)} style={{ width: '18px', height: '18px', accentColor: 'var(--accent-primary)' }} />
+                Abrir caja registradora al cobrar en Efectivo
+              </label>
+            </div>
+          </div>
           <div>
             <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '6px' }}>Mensaje de Pie de Página en Ticket</label>
             <input type="text" value={ticketFooter} onChange={e => setTicketFooter(e.target.value)} placeholder="Ej. ¡Gracias por su compra! Síganos en Instagram" style={{ width: '100%', padding: '10px 12px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-medium)', background: 'var(--bg-app)', color: 'var(--text-primary)', outline: 'none' }} />

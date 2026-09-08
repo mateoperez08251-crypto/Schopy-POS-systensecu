@@ -155,7 +155,7 @@ const MechanicFormModal = ({ isOpen, onClose, onSubmit }: { isOpen: boolean, onC
 
 
 const Staff = ({ showToast }: { showToast?: (m: string, t?: 'success'|'error'|'info') => void }) => {
-  const { userData } = useAuth();
+  const { userData, companyId } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
   const [isStaffModalOpen, setIsStaffModalOpen] = useState(false);
   const [isMechanicModalOpen, setIsMechanicModalOpen] = useState(false);
@@ -166,17 +166,19 @@ const Staff = ({ showToast }: { showToast?: (m: string, t?: 'success'|'error'|'i
   const [activeTab, setActiveTab] = useState<'staff' | 'mechanics'>('staff');
 
   useEffect(() => {
-    const unsubStaff = subscribeToStaffLocal((items) => setStaffList(items));
-    const unsubMechanics = subscribeToMechanics((items) => setMechanicsList(items));
+    if (!companyId) return;
+    const unsubStaff = subscribeToStaffLocal(companyId, (items) => setStaffList(items));
+    const unsubMechanics = subscribeToMechanics(companyId, (items) => setMechanicsList(items));
     return () => {
       unsubStaff();
       unsubMechanics();
     };
-  }, []);
+  }, [companyId]);
 
   const handleAddStaff = async (data: any) => {
     try {
-      await addStaffLocal(data);
+      if (!companyId) throw new Error('No hay empresa conectada');
+      await addStaffLocal(companyId, data);
       if (showToast) showToast('Usuario registrado exitosamente', 'success');
     } catch (error: any) {
       throw error; 
@@ -196,7 +198,8 @@ const Staff = ({ showToast }: { showToast?: (m: string, t?: 'success'|'error'|'i
 
   const handleAddMechanic = async (data: any) => {
     try {
-      await addMechanic(data);
+      if (!companyId) throw new Error('No hay empresa conectada');
+      await addMechanic(companyId, data);
       if (showToast) showToast('Mecánico registrado exitosamente', 'success');
     } catch (error: any) {
       throw error;

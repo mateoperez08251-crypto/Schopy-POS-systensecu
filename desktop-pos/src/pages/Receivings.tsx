@@ -2,20 +2,23 @@ import React, { useState, useEffect } from 'react';
 import { Search, Plus, Filter, PackagePlus, Calendar, ArrowRight, User } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { subscribeToReceivings, Receiving } from '../firebase/localReceivingsService';
+import { useAuth } from '../context/AuthContext';
 
 const Receivings = ({ suppliers }: { suppliers?: any[] }) => {
   const navigate = useNavigate();
+  const { companyId } = useAuth();
   const [receivings, setReceivings] = useState<Receiving[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
 
   useEffect(() => {
-    const unsub = subscribeToReceivings((data) => {
+    if (!companyId) return;
+    const unsub = subscribeToReceivings(companyId, (data) => {
       setReceivings(data.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
     });
     return () => unsub();
-  }, []);
+  }, [companyId]);
 
   // La creación se hace desde NewReceiving.tsx
   const handleAddReceiving = (data: any) => {

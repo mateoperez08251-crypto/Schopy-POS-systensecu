@@ -1,33 +1,40 @@
-import { 
-  subscribeToLocal, 
-  addAndNotify, 
-  updateAndNotify, 
-  deleteAndNotify 
-} from '../services/localDb';
+import { db } from './config';
+import { collection, query, where, onSnapshot, doc, setDoc, updateDoc, deleteDoc } from 'firebase/firestore';
 
 const COLLECTION_NAME = 'inventory';
 
 export const subscribeToInventory = (companyId: string, callback: (data: any[]) => void) => {
-  return subscribeToLocal(COLLECTION_NAME, (items: any[]) => {
-    callback(items); // En modo local, todos los items son de esta instancia
+  const q = query(collection(db, COLLECTION_NAME), where('companyId', '==', companyId));
+  
+  return onSnapshot(q, (snapshot) => {
+    const items = snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    }));
+    callback(items);
+  }, (error) => {
+    console.error("Error subscribing to inventory:", error);
   });
 };
 
 export const addInventoryItem = async (companyId: string, itemData: any) => {
-  const newItem = addAndNotify(COLLECTION_NAME, {
+  const newId = Date.now().toString() + Math.random().toString(36).substr(2, 9);
+  const docRef = doc(db, COLLECTION_NAME, newId);
+  await setDoc(docRef, {
     ...itemData,
     companyId,
     createdAt: new Date().toISOString()
   });
-  return newItem.id;
+  return newId;
 };
 
 export const updateInventoryItem = async (id: string, itemData: any) => {
-  // Extraemos campos que no deben actualizarse para mantener consistencia
   const { id: _, companyId, createdAt, ...updateData } = itemData;
-  updateAndNotify(COLLECTION_NAME, id, updateData);
+  const docRef = doc(db, COLLECTION_NAME, id);
+  await updateDoc(docRef, updateData);
 };
 
 export const deleteInventoryItem = async (id: string) => {
-  deleteAndNotify(COLLECTION_NAME, id);
+  const docRef = doc(db, COLLECTION_NAME, id);
+  await deleteDoc(docRef);
 };

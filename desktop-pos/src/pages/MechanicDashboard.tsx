@@ -9,7 +9,7 @@ import {
 } from 'recharts';
 
 const MechanicDashboard = () => {
-  const { userData, currentUser } = useAuth();
+  const { userData, currentUser, companyId } = useAuth();
   const currency = (userData as any)?.currency || '$';
   
   const [mechanics, setMechanics] = useState<any[]>([]);
@@ -17,14 +17,15 @@ const MechanicDashboard = () => {
   const [selectedMechanicId, setSelectedMechanicId] = useState<string>('');
 
   useEffect(() => {
-    const unsubMechanics = subscribeToMechanics((data) => {
+    if (!companyId) return;
+    const unsubMechanics = subscribeToMechanics(companyId, (data) => {
       setMechanics(data);
       if (data.length > 0 && !selectedMechanicId) {
         setSelectedMechanicId(data[0].id);
       }
     });
     
-    const unsubSales = subscribeToSales((data) => {
+    const unsubSales = subscribeToSales(companyId, (data) => {
       setSales(data);
     });
 
@@ -32,7 +33,7 @@ const MechanicDashboard = () => {
       unsubMechanics();
       unsubSales();
     };
-  }, []);
+  }, [companyId]);
 
   const selectedMechanic = mechanics.find(m => m.id === selectedMechanicId);
 

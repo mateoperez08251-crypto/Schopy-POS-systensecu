@@ -1,52 +1,55 @@
-import { 
-  subscribeToLocal, 
-  addAndNotify, 
-  updateAndNotify, 
-  deleteAndNotify,
-  getLocalData
-} from '../services/localDb';
+import { db } from './config';
+import { collection, query, where, onSnapshot, doc, setDoc, updateDoc, deleteDoc, getDocs } from 'firebase/firestore';
 
 const COLLECTION_NAME = 'staff';
 
-export const subscribeToStaffLocal = (callback: (data: any[]) => void) => {
-  return subscribeToLocal(COLLECTION_NAME, (items: any[]) => {
+export const subscribeToStaffLocal = (companyId: string, callback: (data: any[]) => void) => {
+  const q = query(collection(db, COLLECTION_NAME), where('companyId', '==', companyId));
+  
+  return onSnapshot(q, (snapshot) => {
+    const items = snapshot.docs.map(d => ({
+      id: d.id,
+      ...d.data()
+    }));
     callback(items);
+  }, (error) => {
+    console.error("Error subscribing to staff:", error);
   });
 };
 
-export const getStaffByPin = (pin: string) => {
-  const staff = getLocalData<any>(COLLECTION_NAME);
-  return staff.find(s => s.pin === pin);
+export const getStaffByPin = (pin: string): any | undefined => {
+  // This is now handled by AuthContext using staffList
+  return undefined;
 };
 
-export const getAllStaffLocal = () => {
-  return getLocalData<any>(COLLECTION_NAME);
+export const getAllStaffLocal = (): any[] => {
+  // This is now handled by AuthContext using staffList
+  return [];
 };
 
-export const addStaffLocal = async (staffData: any) => {
-  // Check if PIN already exists
-  const existing = getLocalData<any>(COLLECTION_NAME);
-  if (existing.some(s => s.pin === staffData.pin)) {
-    throw new Error('Ese PIN ya está en uso. Por favor, elige otro.');
-  }
-
-  const newStaff = addAndNotify(COLLECTION_NAME, {
+export const addStaffLocal = async (companyId: string, staffData: any) => {
+  const newId = Date.now().toString() + Math.random().toString(36).substr(2, 9);
+  const docRef = doc(db, COLLECTION_NAME, newId);
+  await setDoc(docRef, {
     ...staffData,
+    companyId,
     createdAt: new Date().toISOString()
   });
-  return newStaff.id;
+  return newId;
 };
 
 export const updateStaffLocal = async (id: string, staffData: any) => {
-  const { id: _, createdAt, ...updateData } = staffData;
-  updateAndNotify(COLLECTION_NAME, id, updateData);
+  const { id: _, createdAt, companyId, ...updateData } = staffData;
+  const docRef = doc(db, COLLECTION_NAME, id);
+  await updateDoc(docRef, updateData);
 };
 
 export const deleteStaffLocal = async (id: string) => {
-  deleteAndNotify(COLLECTION_NAME, id);
+  const docRef = doc(db, COLLECTION_NAME, id);
+  await deleteDoc(docRef);
 };
 
-export const hasAdminLocal = () => {
-  const staff = getLocalData<any>(COLLECTION_NAME);
-  return staff.some(s => s.role === 'admin');
+export const hasAdminLocal = (): boolean => {
+  // This is now handled by AuthContext
+  return false;
 };

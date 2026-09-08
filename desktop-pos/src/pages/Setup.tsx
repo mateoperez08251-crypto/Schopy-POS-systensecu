@@ -2,13 +2,12 @@ import React, { useState } from 'react';
 import { Store, ShieldCheck } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { addStaffLocal } from '../firebase/localStaffService';
 
 const Setup = () => {
   const [companyName, setCompanyName] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const { currentUser, setNeedsSetup } = useAuth();
+  const { currentUser } = useAuth();
   const navigate = useNavigate();
 
   const handleSetup = async (e: React.FormEvent) => {
@@ -34,11 +33,6 @@ const Setup = () => {
 
       // Guardamos la configuración en localStorage
       localStorage.setItem('schopy_store_settings', JSON.stringify(settingsData));
-
-      // Desactivamos la bandera de setup en el contexto
-      if (setNeedsSetup) {
-        setNeedsSetup(false);
-      }
       
       // Forzamos recarga de la página para que el contexto re-evalúe el documento
       window.location.href = '/';
