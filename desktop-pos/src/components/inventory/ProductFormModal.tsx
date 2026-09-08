@@ -233,7 +233,17 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({ isOpen, onClose, on
               </div>
             </div>
 
-
+            {/* Suplidor */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '8px' }}>
+              <label style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Suplidor / Proveedor (Opcional)</label>
+              <input 
+                type="text" 
+                value={formData.supplier || ''}
+                onChange={e => setFormData({...formData, supplier: e.target.value})}
+                placeholder="Nombre del proveedor"
+                style={{ background: 'var(--bg-app)', border: '1px solid var(--border-medium)', color: 'var(--text-primary)', padding: '10px 12px', borderRadius: 'var(--radius-md)', outline: 'none' }} 
+              />
+            </div>
 
             {/* PRECIOS Y COSTO */}
             <div style={{ padding: '16px', background: 'var(--bg-app)', borderRadius: '12px', border: '1px solid var(--border-medium)' }}>
