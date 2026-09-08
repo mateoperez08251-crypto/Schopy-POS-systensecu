@@ -25,6 +25,65 @@ const Inventory = ({ inventory, setInventory, showToast }: { inventory: any[], s
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<any | null>(null);
 
+  // Escáner Inteligente (Barcode + IA Fetch)
+  React.useEffect(() => {
+    let barcodeBuffer = '';
+    let timeoutId: any;
+
+    const handleKeyDown = async (e: KeyboardEvent) => {
+      // Ignorar si el usuario está escribiendo en un input
+      const target = e.target as HTMLElement;
+      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') return;
+
+      if (e.key === 'Enter' && barcodeBuffer.length > 5) {
+        e.preventDefault();
+        const scannedCode = barcodeBuffer;
+        barcodeBuffer = '';
+        
+        // Verificar si ya existe
+        const existing = inventory.find(p => p.code === scannedCode);
+        if (existing) {
+           if (showToast) showToast(`El producto ${existing.name} ya existe.`, 'info');
+           handleOpenModal(existing);
+           return;
+        }
+
+        // Producto nuevo -> Abrir modal y buscar
+        setEditingProduct({ code: scannedCode, name: 'Buscando con IA...', price: 0, costPrice: 0, stock: 0, minStock: 10, category: 'Abarrotes' });
+        setIsModalOpen(true);
+        if (showToast) showToast('Escaneado. Buscando producto en la nube...', 'info');
+        
+        try {
+          const res = await fetch(`https://world.openfoodfacts.org/api/v2/product/${scannedCode}.json`);
+          const data = await res.json();
+          if (data.status === 1 && data.product) {
+            setEditingProduct((prev: any) => ({
+              ...prev,
+              name: data.product.product_name || data.product.generic_name || '',
+            }));
+            if (showToast) showToast('¡Producto autocompletado con éxito!', 'success');
+          } else {
+            setEditingProduct((prev: any) => ({ ...prev, name: '' }));
+          }
+        } catch (err) {
+          setEditingProduct((prev: any) => ({ ...prev, name: '' }));
+        }
+        return;
+      }
+
+      // Si presiona números rápido (escáner USB simula teclado rápido)
+      if (e.key.length === 1 && !isNaN(Number(e.key))) {
+        barcodeBuffer += e.key;
+        clearTimeout(timeoutId);
+        // Si no se presiona nada en 150ms, limpiar buffer (para ignorar tipeo humano lento)
+        timeoutId = setTimeout(() => { barcodeBuffer = ''; }, 150);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [inventory, showToast]);
+
   // Estados para el Modal de Confirmación de Eliminación
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [productToDelete, setProductToDelete] = useState<any | null>(null);
