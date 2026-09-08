@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { Shield, Key, AlertCircle, LogIn } from 'lucide-react';
+import { Shield, AlertCircle, User, ArrowLeft } from 'lucide-react';
+import { getAllStaffLocal } from '../firebase/localStaffService';
 
 const LocalLogin = () => {
   const { localLogin, hasAdmin, createInitialAdmin } = useAuth();
@@ -8,10 +9,17 @@ const LocalLogin = () => {
   const [error, setError] = useState('');
   const [isFirstTime, setIsFirstTime] = useState(false);
   const [adminName, setAdminName] = useState('Administrador');
+  
+  const [users, setUsers] = useState<any[]>([]);
+  const [selectedUser, setSelectedUser] = useState<any | null>(null);
 
   useEffect(() => {
-    // Verificar si existe al menos un admin en la base local
     setIsFirstTime(!hasAdmin);
+    if (hasAdmin) {
+      const staffList = getAllStaffLocal();
+      // Solo cajeros y admins (no mecánicos si es que mecánicos no se loguean al POS principal, pero por ahora mostramos todos o los que tengan PIN)
+      setUsers(staffList.filter((s: any) => s.pin));
+    }
   }, [hasAdmin]);
 
   const handleKeyPress = (key: string) => {
@@ -49,6 +57,67 @@ const LocalLogin = () => {
     }
   };
 
+  if (!isFirstTime && !selectedUser) {
+    return (
+      <div style={{
+        minHeight: '100vh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: 'var(--bg-app)',
+        padding: '24px'
+      }}>
+        <div style={{ maxWidth: '800px', width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '32px' }}>
+          <div style={{ textAlign: 'center' }}>
+            <div style={{ width: '80px', height: '80px', background: 'var(--accent-primary)', borderRadius: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 24px' }}>
+              <Shield size={40} color="white" />
+            </div>
+            <h1 style={{ fontSize: '2rem', fontWeight: 800, color: 'var(--text-primary)' }}>¿Quién está ingresando?</h1>
+            <p style={{ color: 'var(--text-secondary)', marginTop: '8px', fontSize: '1.1rem' }}>Selecciona tu usuario para acceder al sistema</p>
+          </div>
+
+          <div style={{ display: 'flex', gap: '24px', flexWrap: 'wrap', justifyContent: 'center' }}>
+            {users.map(u => (
+              <div 
+                key={u.id}
+                onClick={() => setSelectedUser(u)}
+                className="card hover:shadow-lg"
+                style={{
+                  width: '180px',
+                  padding: '24px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  gap: '16px',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease',
+                  border: '2px solid transparent'
+                }}
+              >
+                <div style={{
+                  width: '64px',
+                  height: '64px',
+                  borderRadius: '50%',
+                  background: u.role === 'admin' ? 'var(--accent-primary)' : 'var(--bg-app)',
+                  border: u.role === 'admin' ? 'none' : '2px solid var(--border-medium)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}>
+                  <User size={32} color={u.role === 'admin' ? 'white' : 'var(--text-secondary)'} />
+                </div>
+                <div style={{ textAlign: 'center' }}>
+                  <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0, textTransform: 'capitalize' }}>{u.name}</h3>
+                  <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>{u.role}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div style={{
       minHeight: '100vh',
@@ -65,23 +134,41 @@ const LocalLogin = () => {
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
-        gap: '24px'
+        gap: '24px',
+        position: 'relative'
       }}>
-        <div style={{ textAlign: 'center' }}>
-          <div style={{
-            width: '64px',
-            height: '64px',
-            background: 'var(--accent-primary)',
-            borderRadius: '16px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            margin: '0 auto 16px'
-          }}>
-            <Shield size={32} color="white" />
-          </div>
+        
+        {!isFirstTime && selectedUser && (
+          <button 
+            onClick={() => { setSelectedUser(null); setPin(''); setError(''); }}
+            style={{ position: 'absolute', top: '24px', left: '24px', background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '8px' }}
+          >
+            <ArrowLeft size={20} /> Volver
+          </button>
+        )}
+
+        <div style={{ textAlign: 'center', marginTop: (!isFirstTime && selectedUser) ? '32px' : '0' }}>
+          {!isFirstTime && selectedUser ? (
+            <div style={{ width: '64px', height: '64px', borderRadius: '50%', background: selectedUser.role === 'admin' ? 'var(--accent-primary)' : 'var(--bg-app)', border: selectedUser.role === 'admin' ? 'none' : '2px solid var(--border-medium)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
+              <User size={32} color={selectedUser.role === 'admin' ? 'white' : 'var(--text-secondary)'} />
+            </div>
+          ) : (
+            <div style={{
+              width: '64px',
+              height: '64px',
+              background: 'var(--accent-primary)',
+              borderRadius: '16px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              margin: '0 auto 16px'
+            }}>
+              <Shield size={32} color="white" />
+            </div>
+          )}
+          
           <h1 style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--text-primary)' }}>
-            {isFirstTime ? 'Configuración Inicial' : 'Iniciar Sesión'}
+            {isFirstTime ? 'Configuración Inicial' : `Hola, ${selectedUser?.name}`}
           </h1>
           <p style={{ color: 'var(--text-secondary)', marginTop: '8px', fontSize: '0.9rem' }}>
             {isFirstTime 

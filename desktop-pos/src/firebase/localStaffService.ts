@@ -19,6 +19,10 @@ export const getStaffByPin = (pin: string) => {
   return staff.find(s => s.pin === pin);
 };
 
+export const getAllStaffLocal = () => {
+  return getLocalData<any>(COLLECTION_NAME);
+};
+
 export const addStaffLocal = async (staffData: any) => {
   // Check if PIN already exists
   const existing = getLocalData<any>(COLLECTION_NAME);
