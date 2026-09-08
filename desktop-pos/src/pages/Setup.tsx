@@ -28,18 +28,18 @@ const Setup = () => {
 
     try {
       // Usaremos el propio UID del creador como companyId para garantizar que sea único mundialmente
-      const companyId = currentUser.uid;
+      const companyId = currentUser.uid || currentUser.id;
       
       const newAdminData = {
         companyId: companyId,
         companyName: companyName, // Guardamos el nombre para el header
         role: 'admin',
-        name: currentUser.email?.split('@')[0] || 'Administrador',
+        name: currentUser.email?.split('@')[0] || currentUser.name || 'Administrador',
         email: currentUser.email
       };
 
       // Guardamos el documento en Firestore
-      await setDoc(doc(db, 'users', currentUser.uid), newAdminData);
+      await setDoc(doc(db, 'users', companyId), newAdminData);
 
       // Desactivamos la bandera de setup en el contexto
       if (setNeedsSetup) {

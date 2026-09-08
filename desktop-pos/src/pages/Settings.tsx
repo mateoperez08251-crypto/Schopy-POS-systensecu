@@ -3,6 +3,7 @@ import { Store, Settings as SettingsIcon, Printer, Shield, Save, Percent, MapPin
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { db } from '../firebase/config';
 import { useAuth } from '../context/AuthContext';
+import { updateStaffLocal } from '../firebase/localStaffService';
 
 const Settings = () => {
   const { currentUser } = useAuth();
@@ -24,12 +25,17 @@ const Settings = () => {
   const [requirePinForDiscount, setRequirePinForDiscount] = useState(false);
   const [requirePinForDelete, setRequirePinForDelete] = useState(false);
 
+  // Cambio de PIN (Solo Admin)
+  const [currentPin, setCurrentPin] = useState('');
+  const [newPin, setNewPin] = useState('');
+  const [isChangingPin, setIsChangingPin] = useState(false);
+
   useEffect(() => {
     const loadSettings = async () => {
       if (!currentUser) return;
       setLoading(true);
       try {
-        const docRef = doc(db, 'users', currentUser.uid);
+        const docRef = doc(db, 'users', currentUser.uid || currentUser.id);
         const docSnap = await getDoc(docRef);
         if (docSnap.exists()) {
           const data = docSnap.data();
@@ -59,7 +65,7 @@ const Settings = () => {
     setMessage({ type: '', text: '' });
 
     try {
-      const docRef = doc(db, 'users', currentUser.uid);
+      const docRef = doc(db, 'users', currentUser.uid || currentUser.id);
       await updateDoc(docRef, {
         companyName,
         address,
@@ -71,7 +77,23 @@ const Settings = () => {
         requirePinForDiscount,
         requirePinForDelete
       });
-      setMessage({ type: 'success', text: 'Configuración guardada exitosamente.' });
+      // Si el usuario intentó guardar el PIN usando el botón principal
+      if (newPin.length === 4) {
+        if (currentUser.pin && currentUser.pin !== currentPin) {
+          setMessage({ type: 'error', text: 'Configuración guardada. Pero el PIN actual es incorrecto, no se cambió el PIN.' });
+          setIsSaving(false);
+          return;
+        }
+        await updateStaffLocal(currentUser.id, { pin: newPin });
+        setCurrentPin('');
+        setNewPin('');
+        sessionStorage.setItem('schopy_active_pin', newPin);
+        currentUser.pin = newPin; 
+        setMessage({ type: 'success', text: 'Configuración y nuevo PIN guardados exitosamente.' });
+      } else {
+        setMessage({ type: 'success', text: 'Configuración guardada exitosamente.' });
+      }
+
       setTimeout(() => setMessage({ type: '', text: '' }), 3000);
     } catch (err: any) {
       console.error(err);
@@ -79,6 +101,38 @@ const Settings = () => {
     }
     
     setIsSaving(false);
+  };
+
+  const handleChangePin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!currentUser) return;
+    
+    if (currentUser.pin && currentUser.pin !== currentPin) {
+      setMessage({ type: 'error', text: 'El PIN actual es incorrecto.' });
+      return;
+    }
+    
+    if (newPin.length !== 4) {
+      setMessage({ type: 'error', text: 'El nuevo PIN debe tener exactamente 4 dígitos numéricos.' });
+      return;
+    }
+    
+    setIsChangingPin(true);
+    setMessage({ type: '', text: '' });
+
+    try {
+      await updateStaffLocal(currentUser.id, { pin: newPin });
+      setMessage({ type: 'success', text: 'PIN actualizado exitosamente. En el próximo inicio de sesión, usa tu nuevo PIN.' });
+      setCurrentPin('');
+      setNewPin('');
+      sessionStorage.setItem('schopy_active_pin', newPin);
+      currentUser.pin = newPin; 
+    } catch (err: any) {
+      console.error(err);
+      setMessage({ type: 'error', text: 'Error al cambiar el PIN.' });
+    }
+    
+    setIsChangingPin(false);
   };
 
   if (loading) {
@@ -172,7 +226,7 @@ const Settings = () => {
               <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '6px' }}>ITBIS / Impuesto (%)</label>
               <div style={{ position: 'relative' }}>
                 <Percent size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
-                <input type="number" step="0.1" min="0" value={taxRate} onChange={e => setTaxRate(e.target.value)} placeholder="Ej. 18" style={{ width: '100%', padding: '10px 10px 10px 36px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-medium)', background: 'var(--bg-app)', color: 'var(--text-primary)', outline: 'none' }} />
+                <input type="number" step="0.1" min="0" value={taxRate} onChange={e => setTaxRate(e.target.value)} onWheel={(e) => (e.target as HTMLInputElement).blur()} placeholder="Ej. 18" style={{ width: '100%', padding: '10px 10px 10px 36px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-medium)', background: 'var(--bg-app)', color: 'var(--text-primary)', outline: 'none' }} />
               </div>
             </div>
           </div>
@@ -214,6 +268,53 @@ const Settings = () => {
             </label>
           </div>
         </div>
+
+        {/* Sección: Cambio de PIN (Solo Administradores) */}
+        {currentUser?.role === 'admin' && (
+          <div className="card" style={{ padding: '24px', border: '1px solid var(--accent-primary)', boxShadow: '0 4px 15px rgba(79, 70, 229, 0.1)' }}>
+            <h2 style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '8px', borderBottom: '1px solid var(--border-light)', paddingBottom: '12px' }}>
+              <Shield size={20} color="var(--accent-primary)" /> Cambiar PIN de Acceso (Admin)
+            </h2>
+            
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', alignItems: 'end' }}>
+              {currentUser.pin && (
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '6px' }}>PIN Actual</label>
+                  <input 
+                    type="password" 
+                    maxLength={4}
+                    value={currentPin} 
+                    onChange={e => setCurrentPin(e.target.value.replace(/\D/g, '').slice(0, 4))} 
+                    placeholder="****" 
+                    style={{ width: '100%', padding: '10px 12px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-medium)', background: 'var(--bg-app)', color: 'var(--text-primary)', outline: 'none' }} 
+                  />
+                </div>
+              )}
+              <div>
+                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '6px' }}>Nuevo PIN (4 dígitos)</label>
+                <input 
+                  type="password" 
+                  maxLength={4}
+                  value={newPin} 
+                  onChange={e => setNewPin(e.target.value.replace(/\D/g, '').slice(0, 4))} 
+                  placeholder="****" 
+                  style={{ width: '100%', padding: '10px 12px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-medium)', background: 'var(--bg-app)', color: 'var(--text-primary)', outline: 'none' }} 
+                />
+              </div>
+            </div>
+            
+            <div style={{ marginTop: '20px', display: 'flex', justifyContent: 'flex-end' }}>
+              <button 
+                type="button" 
+                onClick={handleChangePin} 
+                disabled={isChangingPin || !currentPin || newPin.length !== 4} 
+                className="btn btn-primary"
+              >
+                {isChangingPin ? 'Cambiando...' : 'Actualizar PIN'}
+              </button>
+            </div>
+          </div>
+        )}
 
       </form>
     </div>

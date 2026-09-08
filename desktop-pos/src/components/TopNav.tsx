@@ -18,7 +18,7 @@ const TopNav = ({ title = "" }: { title?: string }) => {
   const notifRef = useRef<HTMLDivElement>(null);
   const mailRef = useRef<HTMLDivElement>(null);
   const location = useLocation();
-  const { daysRemaining } = useAuth();
+  const { daysRemaining = null } = useAuth();
 
   const playDing = () => {
     try {

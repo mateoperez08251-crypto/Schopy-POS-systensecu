@@ -502,6 +502,7 @@ const CashRegister: React.FC<CashRegisterProps> = ({ salesHistory = [], setSales
               <DollarSign size={18} style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
               <input 
                 type="number" 
+                onWheel={(e) => (e.target as HTMLInputElement).blur()}
                 value={baseCash}
                 onChange={(e) => setBaseCash(e.target.value)}
                 placeholder="50.00"

@@ -127,11 +127,11 @@ const POSInterface: React.FC<POSInterfaceProps> = ({ salesHistory, setSalesHisto
 
   const handleRemove = (id: number) => {
     const item = cart.find(i => i.id === id);
-    if (item && currentUser && userData?.companyId) {
+    if (item && currentUser && (userData?.companyId || 'local')) {
       logAuditEvent(
-        userData.companyId,
-        currentUser.uid,
-        userData.name,
+        userData?.companyId || 'local',
+        currentUser.uid || currentUser.id,
+        userData?.name || 'Usuario Local',
         'Producto Eliminado',
         `Se eliminó ${item.name} del carrito actual.`,
         'warning'
@@ -146,11 +146,11 @@ const POSInterface: React.FC<POSInterfaceProps> = ({ salesHistory, setSalesHisto
   const applyModifier = (e: React.FormEvent) => {
     e.preventDefault();
     if (modifierItem) {
-      if (modifierItem.discount && modifierItem.discount > 0 && currentUser && userData?.companyId) {
+      if (modifierItem.discount && modifierItem.discount > 0 && currentUser && (userData?.companyId || 'local')) {
         logAuditEvent(
-          userData.companyId,
-          currentUser.uid,
-          userData.name,
+          userData?.companyId || 'local',
+          currentUser.uid || currentUser.id,
+          userData?.name || 'Usuario Local',
           'Descuento Aplicado',
           `Se aplicó un descuento del ${modifierItem.discount}% a ${modifierItem.name}.`,
           'warning'
@@ -192,11 +192,11 @@ const POSInterface: React.FC<POSInterfaceProps> = ({ salesHistory, setSalesHisto
         }
       });
 
-      if (currentUser && userData?.companyId) {
+      if (currentUser && (userData?.companyId || 'local')) {
         logAuditEvent(
-          userData.companyId,
-          currentUser.uid,
-          userData.name,
+          userData?.companyId || 'local',
+          currentUser.uid || currentUser.id,
+          userData?.name || 'Usuario Local',
           'Venta Completada',
           `Venta #${newSale.id} por ${currency}${newSale.total.toFixed(2)} (${newSale.paymentMethod}). ${newSale.items.length} productos.`,
           'info'
@@ -305,11 +305,11 @@ const POSInterface: React.FC<POSInterfaceProps> = ({ salesHistory, setSalesHisto
   };
 
   const clearCart = () => {
-    if (cart.length > 0 && currentUser && userData?.companyId) {
+    if (cart.length > 0 && currentUser && (userData?.companyId || 'local')) {
       logAuditEvent(
-        userData.companyId,
-        currentUser.uid,
-        userData.name,
+        userData?.companyId || 'local',
+        currentUser.uid || currentUser.id,
+        userData?.name || 'Usuario Local',
         'Carrito Cancelado',
         `Se canceló una venta en progreso de ${currency}${total.toFixed(2)} con ${cart.length} productos.`,
         'warning'

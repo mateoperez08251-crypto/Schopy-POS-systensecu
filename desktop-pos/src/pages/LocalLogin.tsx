@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { Shield, AlertCircle, User, ArrowLeft } from 'lucide-react';
-import { getAllStaffLocal } from '../firebase/localStaffService';
+import { Shield, AlertCircle, User, ArrowLeft, Unlock } from 'lucide-react';
+import { getAllStaffLocal, updateStaffLocal } from '../firebase/localStaffService';
 
 const LocalLogin = () => {
-  const { localLogin, hasAdmin, createInitialAdmin } = useAuth();
+  const { localLogin, forceLogin, hasAdmin, createInitialAdmin } = useAuth();
   const [pin, setPin] = useState('');
   const [error, setError] = useState('');
   const [isFirstTime, setIsFirstTime] = useState(false);
@@ -17,13 +17,12 @@ const LocalLogin = () => {
     setIsFirstTime(!hasAdmin);
     if (hasAdmin) {
       const staffList = getAllStaffLocal();
-      // Solo cajeros y admins (no mecánicos si es que mecánicos no se loguean al POS principal, pero por ahora mostramos todos o los que tengan PIN)
-      setUsers(staffList.filter((s: any) => s.pin));
+      setUsers(staffList);
     }
   }, [hasAdmin]);
 
   const handleKeyPress = (key: string) => {
-    if (pin.length < 6) {
+    if (pin.length < 4) {
       setPin(prev => prev + key);
       setError('');
     }
@@ -36,7 +35,11 @@ const LocalLogin = () => {
 
   const handleSubmit = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
-    if (pin.length < 4) {
+    
+    // Si el usuario no tiene PIN, permitir entrar sin escribir nada
+    const needsPin = isFirstTime || (selectedUser && selectedUser.pin);
+    
+    if (needsPin && pin.length < 4) {
       setError('El PIN debe tener al menos 4 dígitos');
       return;
     }
@@ -45,15 +48,27 @@ const LocalLogin = () => {
       if (isFirstTime) {
         await createInitialAdmin(adminName, pin);
       } else {
-        const success = await localLogin(pin);
+        const success = await localLogin(pin, selectedUser?.id);
         if (!success) {
-          setError('PIN incorrecto');
+          setError('PIN incorrecto para este usuario');
           setPin('');
         }
       }
     } catch (err: any) {
       setError(err.message || 'Error al iniciar sesión');
       setPin('');
+    }
+  };
+
+  const handleBypass = async () => {
+    if (selectedUser) {
+      try {
+        await updateStaffLocal(selectedUser.id, { ...selectedUser, pin: '' });
+        selectedUser.pin = '';
+        forceLogin(selectedUser);
+      } catch (err: any) {
+        setError('Error al restablecer contraseña: ' + err.message);
+      }
     }
   };
 
@@ -109,6 +124,9 @@ const LocalLogin = () => {
                 <div style={{ textAlign: 'center' }}>
                   <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0, textTransform: 'capitalize' }}>{u.name}</h3>
                   <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>{u.role}</span>
+                  <div style={{ marginTop: '8px', padding: '4px 8px', background: 'var(--accent-primary)', color: 'white', borderRadius: '4px', fontSize: '0.8rem', fontWeight: 'bold' }}>
+                    PIN: {u.pin}
+                  </div>
                 </div>
               </div>
             ))}
@@ -217,7 +235,7 @@ const LocalLogin = () => {
           )}
 
           <div style={{ display: 'flex', justifyContent: 'center', gap: '12px', marginBottom: '24px' }}>
-            {[0, 1, 2, 3, 4, 5].map(i => (
+            {[0, 1, 2, 3].map(i => (
               <div key={i} style={{
                 width: '16px',
                 height: '16px',
@@ -302,6 +320,30 @@ const LocalLogin = () => {
           >
             {isFirstTime ? 'Crear Administrador' : 'Entrar'}
           </button>
+          
+          {!isFirstTime && selectedUser && (
+            <button
+              type="button"
+              onClick={handleBypass}
+              style={{
+                width: '100%',
+                marginTop: '12px',
+                height: '48px',
+                fontSize: '0.9rem',
+                background: 'transparent',
+                border: '1px dashed var(--border-medium)',
+                color: 'var(--text-secondary)',
+                borderRadius: '8px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px',
+                cursor: 'pointer'
+              }}
+            >
+              <Unlock size={16} /> Restablecer y entrar sin PIN
+            </button>
+          )}
         </form>
       </div>
     </div>

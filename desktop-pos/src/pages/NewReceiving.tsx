@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { ArrowLeft, Search, Building2, PackagePlus, FileText, Phone, User, Trash2, Save } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { useAuth } from '../context/AuthContext';
@@ -8,6 +8,7 @@ import { addReceivingLocal } from '../firebase/localReceivingsService';
 
 const NewReceiving = ({ inventory, setInventory, suppliers, showToast }: { inventory: any[], setInventory: (inv: any[]) => void, suppliers: any[], showToast?: (m: string, t?: 'success'|'error') => void }) => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { userData } = useAuth();
   const [supplierSearch, setSupplierSearch] = useState('');
   const [selectedSupplier, setSelectedSupplier] = useState<any>(null);
@@ -17,6 +18,23 @@ const NewReceiving = ({ inventory, setInventory, suppliers, showToast }: { inven
   const [showProductDropdown, setShowProductDropdown] = useState(false);
   
   const [items, setItems] = useState<any[]>([]);
+
+  React.useEffect(() => {
+    if (location.state) {
+      if (location.state.supplier) {
+        setSelectedSupplier(location.state.supplier);
+      }
+      if (location.state.itemsToOrder) {
+        const formattedItems = location.state.itemsToOrder.map((item: any) => ({
+          ...item,
+          quantity: item.orderQuantity || 1,
+          cost: item.costPrice || 0,
+          entryType: 'unit'
+        }));
+        setItems(formattedItems);
+      }
+    }
+  }, [location.state]);
 
   // Derived state
   const filteredSuppliers = suppliers.filter(s => s.name.toLowerCase().includes(supplierSearch.toLowerCase()) || (s.rnc && s.rnc.includes(supplierSearch)));
@@ -398,6 +416,7 @@ const NewReceiving = ({ inventory, setInventory, suppliers, showToast }: { inven
                     <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                       <input 
                         type="number" min="1"
+                        onWheel={(e) => (e.target as HTMLInputElement).blur()}
                         style={{ 
                           width: '80px', height: '40px', padding: '0 12px',
                           backgroundColor: 'var(--bg-app)', border: '1px solid var(--border-light)',
@@ -425,6 +444,7 @@ const NewReceiving = ({ inventory, setInventory, suppliers, showToast }: { inven
                           <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: 500 }}>de</span>
                           <input 
                             type="number" min="1"
+                            onWheel={(e) => (e.target as HTMLInputElement).blur()}
                             value={item.unitsPerPackage || 1}
                             onChange={(e) => updateItem(item.id, 'unitsPerPackage', parseInt(e.target.value) || 1)}
                             style={{ 
@@ -443,6 +463,7 @@ const NewReceiving = ({ inventory, setInventory, suppliers, showToast }: { inven
                   <td style={{ padding: '16px 24px' }}>
                     <input 
                       type="number" min="0" step="0.01"
+                      onWheel={(e) => (e.target as HTMLInputElement).blur()}
                       style={{ 
                         width: '120px', height: '40px', padding: '0 12px',
                         backgroundColor: 'var(--bg-app)', border: '1px solid var(--border-light)',

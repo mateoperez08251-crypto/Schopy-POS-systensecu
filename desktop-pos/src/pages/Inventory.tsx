@@ -94,7 +94,7 @@ const Inventory = ({ inventory, setInventory, showToast }: { inventory: any[], s
   };
 
   const handleSaveProduct = async (productData: any) => {
-    if (!userData?.companyId) return;
+    const currentCompanyId = userData?.companyId || 'local';
 
     try {
       if (productData.id) {
@@ -103,7 +103,7 @@ const Inventory = ({ inventory, setInventory, showToast }: { inventory: any[], s
         if (showToast) showToast('Producto actualizado correctamente', 'success');
       } else {
         // Nuevo
-        await addInventoryItem(userData.companyId, productData);
+        await addInventoryItem(currentCompanyId, productData);
         if (showToast) showToast('Producto agregado exitosamente al inventario', 'success');
       }
       setIsModalOpen(false);
@@ -150,7 +150,10 @@ const Inventory = ({ inventory, setInventory, showToast }: { inventory: any[], s
     
     // Filtro por fecha
     if (dateFilter) {
-      result = result.filter(p => p.dateAdded === dateFilter);
+      result = result.filter(p => {
+        const productDate = p.createdAt ? p.createdAt.split('T')[0] : p.dateAdded;
+        return productDate === dateFilter;
+      });
     }
 
     // Filtro por categoría
@@ -442,7 +445,7 @@ const Inventory = ({ inventory, setInventory, showToast }: { inventory: any[], s
                         </span>
                       </td>
                       <td style={{ padding: '16px', fontSize: '0.9rem' }}>{product.supplier}</td>
-                      <td style={{ padding: '16px', fontSize: '0.9rem', color: 'var(--text-secondary)' }}>{product.dateAdded}</td>
+                      <td style={{ padding: '16px', fontSize: '0.9rem', color: 'var(--text-secondary)' }}>{product.createdAt ? product.createdAt.split('T')[0] : (product.dateAdded || 'N/A')}</td>
                       <td style={{ padding: '16px', fontWeight: 700, color: 'var(--accent-primary)', textAlign: 'right' }}>${product.price.toFixed(2)}</td>
                       <td style={{ padding: '16px', textAlign: 'center' }}>
                         <span style={{ 

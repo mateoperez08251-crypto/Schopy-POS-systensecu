@@ -3,7 +3,6 @@ import { Search, Plus, Shield, User, Trash2, Wrench } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { subscribeToStaffLocal, addStaffLocal, deleteStaffLocal } from '../firebase/localStaffService';
 import { subscribeToMechanics, addMechanic, deleteMechanic } from '../firebase/localMechanicsService';
-import { createPortal } from 'react-dom';
 
 const StaffFormModal = ({ isOpen, onClose, onSubmit }: { isOpen: boolean, onClose: () => void, onSubmit: (data: any) => Promise<void> }) => {
   const [formData, setFormData] = useState({ name: '', pin: '', role: 'cashier' });
@@ -14,8 +13,8 @@ const StaffFormModal = ({ isOpen, onClose, onSubmit }: { isOpen: boolean, onClos
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (formData.pin.length < 4) {
-      setError('El PIN debe tener al menos 4 dígitos');
+    if (formData.pin.trim().length > 0 && formData.pin.length !== 4) {
+      setError('Si ingresas un PIN, debe tener exactamente 4 dígitos');
       return;
     }
     setLoading(true);
@@ -31,7 +30,7 @@ const StaffFormModal = ({ isOpen, onClose, onSubmit }: { isOpen: boolean, onClos
     }
   };
 
-  return createPortal(
+  return (
     <div className="checkout-modal-overlay" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 99999, padding: '24px' }} onClick={onClose}>
       <div className="card" style={{ width: '100%', maxWidth: '400px', display: 'flex', flexDirection: 'column', padding: 0, overflow: 'hidden' }} onClick={e => e.stopPropagation()}>
         <div style={{ padding: '20px 24px', borderBottom: '1px solid var(--border-medium)', background: 'var(--bg-app)' }}>
@@ -68,8 +67,8 @@ const StaffFormModal = ({ isOpen, onClose, onSubmit }: { isOpen: boolean, onClos
           <div style={{ display: 'grid', gap: '8px' }}>
             <label style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)' }}>PIN de Acceso</label>
             <input 
-              type="text" required value={formData.pin} onChange={e => setFormData({...formData, pin: e.target.value.replace(/\D/g, '').slice(0, 6)})}
-              placeholder="4 a 6 dígitos numéricos"
+              type="text" value={formData.pin} onChange={e => setFormData({...formData, pin: e.target.value.replace(/\D/g, '').slice(0, 4)})}
+              placeholder="4 dígitos numéricos (Opcional)"
               style={{ background: 'var(--bg-app)', border: '1px solid var(--border-medium)', color: 'var(--text-primary)', padding: '10px 12px', borderRadius: 'var(--radius-md)', outline: 'none' }} 
             />
           </div>
@@ -82,8 +81,7 @@ const StaffFormModal = ({ isOpen, onClose, onSubmit }: { isOpen: boolean, onClos
           </div>
         </form>
       </div>
-    </div>,
-    document.body
+    </div>
   );
 };
 
@@ -110,7 +108,7 @@ const MechanicFormModal = ({ isOpen, onClose, onSubmit }: { isOpen: boolean, onC
     }
   };
 
-  return createPortal(
+  return (
     <div className="checkout-modal-overlay" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 99999, padding: '24px' }} onClick={onClose}>
       <div className="card" style={{ width: '100%', maxWidth: '400px', display: 'flex', flexDirection: 'column', padding: 0, overflow: 'hidden' }} onClick={e => e.stopPropagation()}>
         <div style={{ padding: '20px 24px', borderBottom: '1px solid var(--border-medium)', background: 'var(--bg-app)' }}>
@@ -151,8 +149,7 @@ const MechanicFormModal = ({ isOpen, onClose, onSubmit }: { isOpen: boolean, onC
           </div>
         </form>
       </div>
-    </div>,
-    document.body
+    </div>
   );
 };
 

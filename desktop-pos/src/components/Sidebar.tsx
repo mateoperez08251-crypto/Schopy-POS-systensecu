@@ -7,9 +7,9 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
-const Sidebar = () => {
+const Sidebar = ({ onOpenRestockModal }: { onOpenRestockModal?: () => void }) => {
   const [isCollapsed, setIsCollapsed] = useState(false);
-  const { logout } = useAuth();
+  const { logout, userData } = useAuth();
   
   const navItems = [
     { icon: LayoutDashboard, label: 'Panel de Control', path: '/' },
@@ -31,7 +31,8 @@ const Sidebar = () => {
       path: '/suppliers',
       subItems: [
         { label: 'Directorio', path: '/suppliers' },
-        { label: 'Recepción Mercancía', path: '/receivings' }
+        { label: 'Recepción Mercancía', path: '/receivings' },
+        { label: 'Planificador de Compras', action: 'restock' }
       ]
     },
     { icon: Users, label: 'Clientes', path: '/customers' },
@@ -78,17 +79,17 @@ const Sidebar = () => {
       </button>
 
       {/* Perfil de Usuario */}
-      {!isCollapsed ? (
+      {!isCollapsed && userData ? (
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px', border: '1px solid var(--border-light)', borderRadius: 'var(--radius-md)', marginBottom: '32px' }}>
-          <img src="https://ui-avatars.com/api/?name=Admin+POS&background=random" alt="Usuario" style={{ width: '36px', height: '36px', borderRadius: '50%', flexShrink: 0 }} />
+          <img src={`https://ui-avatars.com/api/?name=${encodeURIComponent(userData.name || 'User')}&background=random`} alt="Usuario" style={{ width: '36px', height: '36px', borderRadius: '50%', flexShrink: 0 }} />
           <div style={{ overflow: 'hidden' }}>
-            <p style={{ fontSize: '0.85rem', fontWeight: 600, whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>admin@schopy.com</p>
-            <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Administrador</p>
+            <p style={{ fontSize: '0.85rem', fontWeight: 600, whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>{userData.name}</p>
+            <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{userData.role === 'admin' ? 'Administrador' : 'Cajero'}</p>
           </div>
         </div>
       ) : (
         <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '32px' }}>
-          <img src="https://ui-avatars.com/api/?name=Admin+POS&background=random" alt="Usuario" style={{ width: '36px', height: '36px', borderRadius: '50%' }} />
+          <img src={`https://ui-avatars.com/api/?name=${encodeURIComponent(userData?.name || 'User')}&background=random`} alt="Usuario" style={{ width: '36px', height: '36px', borderRadius: '50%' }} />
         </div>
       )}
 
@@ -133,16 +134,30 @@ const Sidebar = () => {
             {/* SubItems */}
             {item.subItems && expandedMenu === item.label && !isCollapsed && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', paddingLeft: '32px', marginTop: '4px', marginBottom: '8px' }}>
-                {item.subItems.map(sub => (
-                  <NavLink
-                    key={sub.label}
-                    to={sub.path!}
-                    className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
-                    style={{ textDecoration: 'none', padding: '8px 12px', fontSize: '0.85rem' }}
-                    onClick={() => setIsCollapsed(true)}
-                  >
-                    {sub.label}
-                  </NavLink>
+                {item.subItems.map((sub: any) => (
+                  sub.action ? (
+                    <button
+                      key={sub.label}
+                      onClick={() => {
+                        if (sub.action === 'restock' && onOpenRestockModal) onOpenRestockModal();
+                        setIsCollapsed(true);
+                      }}
+                      className="nav-item"
+                      style={{ background: 'none', border: 'none', width: '100%', textAlign: 'left', cursor: 'pointer', padding: '8px 12px', fontSize: '0.85rem', color: 'var(--text-primary)' }}
+                    >
+                      {sub.label}
+                    </button>
+                  ) : (
+                    <NavLink
+                      key={sub.label}
+                      to={sub.path!}
+                      className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
+                      style={{ textDecoration: 'none', padding: '8px 12px', fontSize: '0.85rem' }}
+                      onClick={() => setIsCollapsed(true)}
+                    >
+                      {sub.label}
+                    </NavLink>
+                  )
                 ))}
               </div>
             )}

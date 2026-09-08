@@ -29,6 +29,7 @@ import MechanicDashboard from './pages/MechanicDashboard';
 import Help from './pages/Help';
 // Pantalla de Cierre de Caja
 import CashRegister from './pages/CashRegister';
+import RestockModal from './components/inventory/RestockModal';
 
 import { useAuth } from './context/AuthContext';
 import { subscribeToInventory } from './firebase/inventoryService';
@@ -40,6 +41,7 @@ function App() {
   const [suppliers, setSuppliers] = useState<any[]>(INITIAL_SUPPLIERS);
   const [customers, setCustomers] = useState<any[]>([]);
   const [toast, setToast] = useState<{message: string, type: 'success' | 'error' | 'info'} | null>(null);
+  const [isRestockModalOpen, setIsRestockModalOpen] = useState(false);
 
   const { currentUser, userData } = useAuth();
 
@@ -71,7 +73,7 @@ function App() {
     <Router>
       <div className="app-layout">
         <OfflineOverlay />
-        <Sidebar />
+        <Sidebar onOpenRestockModal={() => setIsRestockModalOpen(true)} />
         <div className="main-content">
           <TopNav title="" />
           <Routes>
@@ -108,6 +110,13 @@ function App() {
             {toast.message}
           </div>
         )}
+        
+        <RestockModal 
+          isOpen={isRestockModalOpen} 
+          onClose={() => setIsRestockModalOpen(false)} 
+          inventory={inventory} 
+          suppliers={suppliers} 
+        />
       </div>
     </Router>
   );

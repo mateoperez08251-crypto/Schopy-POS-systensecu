@@ -24,7 +24,8 @@ interface AuthContextType {
   userData: UserData | null;
   hasAdmin: boolean;
   loading: boolean;
-  localLogin: (pin: string) => Promise<boolean>;
+  localLogin: (pin: string, expectedUserId?: string) => Promise<boolean>;
+  forceLogin: (user: UserData) => void;
   logout: () => void;
   createInitialAdmin: (name: string, pin: string) => Promise<void>;
   setNeedsSetup?: (value: boolean) => void;
@@ -37,6 +38,7 @@ const AuthContext = createContext<AuthContextType>({
   hasAdmin: false,
   loading: true,
   localLogin: async () => false,
+  forceLogin: () => {},
   logout: () => {},
   createInitialAdmin: async () => {},
 });
@@ -63,14 +65,22 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
     setLoading(false);
   }, []);
 
-  const localLogin = async (pin: string): Promise<boolean> => {
+  const localLogin = async (pin: string, expectedUserId?: string): Promise<boolean> => {
     const user = getStaffByPin(pin);
     if (user) {
+      if (expectedUserId && user.id !== expectedUserId) {
+        return false;
+      }
       setCurrentUser(user);
       sessionStorage.setItem('schopy_active_pin', pin);
       return true;
     }
     return false;
+  };
+
+  const forceLogin = (user: UserData) => {
+    setCurrentUser(user);
+    sessionStorage.setItem('schopy_active_pin', user.pin || '');
   };
 
   const logout = () => {
@@ -94,6 +104,7 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
     hasAdmin,
     loading,
     localLogin,
+    forceLogin,
     logout,
     createInitialAdmin
   };
