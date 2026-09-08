@@ -3,25 +3,7 @@ import { useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { LayoutDashboard, Search, Bell, Mail, Share2, ShieldAlert, CheckCircle2, AlertTriangle, BellOff, ShoppingCart, FileText, History, Package, X } from 'lucide-react';
 
-const initialNotifications = [
-
-  {
-    id: 2,
-    type: 'warning',
-    title: 'Stock Crítico detectado',
-    desc: 'Quedan solo 2 unidades de "Coca Cola 2L" en inventario.',
-    time: 'Hace 15 min',
-    icon: AlertTriangle
-  },
-  {
-    id: 3,
-    type: 'success',
-    title: 'Cierre de Caja Exitoso',
-    desc: 'El usuario Carlos finalizó su turno sin descuadres.',
-    time: 'Hace 1 hora',
-    icon: CheckCircle2
-  }
-];
+const initialNotifications: any[] = [];
 
 // Variable global a nivel de módulo para que solo suene una vez por sesión
 let hasPlayedNotificationDing = false;

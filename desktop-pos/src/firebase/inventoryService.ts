@@ -1,63 +1,33 @@
-import { db } from './config';
 import { 
-  collection, 
-  addDoc, 
-  updateDoc, 
-  deleteDoc, 
-  doc, 
-  query, 
-  where, 
-  getDocs,
-  onSnapshot
-} from 'firebase/firestore';
+  subscribeToLocal, 
+  addAndNotify, 
+  updateAndNotify, 
+  deleteAndNotify 
+} from '../services/localDb';
 
 const COLLECTION_NAME = 'inventory';
 
 export const subscribeToInventory = (companyId: string, callback: (data: any[]) => void) => {
-  const q = query(collection(db, COLLECTION_NAME), where("companyId", "==", companyId));
-  
-  return onSnapshot(q, (snapshot) => {
-    const items = snapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data()
-    }));
-    callback(items);
-  }, (error) => {
-    console.error("Error subscribing to inventory: ", error);
+  return subscribeToLocal(COLLECTION_NAME, (items: any[]) => {
+    callback(items); // En modo local, todos los items son de esta instancia
   });
 };
 
 export const addInventoryItem = async (companyId: string, itemData: any) => {
-  try {
-    const docRef = await addDoc(collection(db, COLLECTION_NAME), {
-      ...itemData,
-      companyId, // Etiqueta obligatoria para el SaaS
-      createdAt: new Date().toISOString()
-    });
-    return docRef.id;
-  } catch (error) {
-    console.error("Error adding document: ", error);
-    throw error;
-  }
+  const newItem = addAndNotify(COLLECTION_NAME, {
+    ...itemData,
+    companyId,
+    createdAt: new Date().toISOString()
+  });
+  return newItem.id;
 };
 
 export const updateInventoryItem = async (id: string, itemData: any) => {
-  try {
-    const docRef = doc(db, COLLECTION_NAME, id);
-    // Extraemos campos que no deben actualizarse
-    const { id: _, companyId, createdAt, ...updateData } = itemData;
-    await updateDoc(docRef, updateData);
-  } catch (error) {
-    console.error("Error updating document: ", error);
-    throw error;
-  }
+  // Extraemos campos que no deben actualizarse para mantener consistencia
+  const { id: _, companyId, createdAt, ...updateData } = itemData;
+  updateAndNotify(COLLECTION_NAME, id, updateData);
 };
 
 export const deleteInventoryItem = async (id: string) => {
-  try {
-    await deleteDoc(doc(db, COLLECTION_NAME, id));
-  } catch (error) {
-    console.error("Error deleting document: ", error);
-    throw error;
-  }
+  deleteAndNotify(COLLECTION_NAME, id);
 };

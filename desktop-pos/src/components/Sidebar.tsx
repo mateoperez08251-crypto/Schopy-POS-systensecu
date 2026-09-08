@@ -5,9 +5,11 @@ import {
   BarChart2, ShieldAlert, MoreHorizontal, Settings, HelpCircle, 
   ArrowUpRight, LogOut, Menu, X, Truck, Users, Wallet
 } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 
 const Sidebar = () => {
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const { logout } = useAuth();
   
   const navItems = [
     { icon: LayoutDashboard, label: 'Panel de Control', path: '/' },
@@ -178,13 +180,35 @@ const Sidebar = () => {
           <Settings size={18} style={{ flexShrink: 0 }} />
           {!isCollapsed && 'Configuración'}
         </NavLink>
-        <NavLink to="/help" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} style={{ textDecoration: 'none', justifyContent: isCollapsed ? 'center' : 'flex-start' }} title={isCollapsed ? 'Centro de Ayuda' : undefined} onClick={() => { setExpandedMenu(null); setIsCollapsed(true); }}>
+        <a 
+          href="https://wa.me/18296324220"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="nav-item" 
+          style={{ textDecoration: 'none', justifyContent: isCollapsed ? 'center' : 'flex-start' }} 
+          title={isCollapsed ? 'Soporte de WhatsApp' : undefined} 
+          onClick={() => { setExpandedMenu(null); setIsCollapsed(true); }}
+        >
           <HelpCircle size={18} style={{ flexShrink: 0 }} />
-          {!isCollapsed && 'Centro de Ayuda'}
-        </NavLink>
+          {!isCollapsed && 'Soporte'}
+        </a>
         
         <div style={{ marginTop: '16px' }}>
-          <button className="logout-btn" style={{ justifyContent: isCollapsed ? 'center' : undefined }}>
+          <button 
+            className="logout-btn" 
+            style={{ justifyContent: isCollapsed ? 'center' : undefined }}
+            onClick={async () => {
+              if (!navigator.onLine) {
+                alert("Sin conexión a internet. No puedes cerrar sesión para evitar pérdida de datos locales.");
+                return;
+              }
+              try {
+                await logout();
+              } catch (e) {
+                console.error("Logout error", e);
+              }
+            }}
+          >
             <div className="sign"><LogOut size={18} strokeWidth={2.5} /></div>
             {!isCollapsed && <div className="text">Salir</div>}
           </button>

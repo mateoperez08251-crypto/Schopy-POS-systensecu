@@ -268,12 +268,11 @@ const Dashboard = () => {
     );
   }
 
-  // Filtrar datos del gráfico según la selección
   let filteredRevenue = data.revenue;
   if (timeFilter === '6 M') filteredRevenue = data.revenue.slice(-6);
   if (timeFilter === '1 M') filteredRevenue = data.revenue.slice(-1);
-  if (timeFilter === '1 S') filteredRevenue = data.revenue.slice(-1).map(d => ({ ...d, uv: d.uv / 4 })); // mock
-  if (timeFilter === '1 D') filteredRevenue = data.revenue.slice(-1).map(d => ({ ...d, uv: d.uv / 30 })); // mock
+  if (timeFilter === '1 S') filteredRevenue = data.revenue.slice(-1);
+  if (timeFilter === '1 D') filteredRevenue = data.revenue.slice(-1);
 
   return (
     <div style={{ position: 'relative' }}>
@@ -357,8 +356,8 @@ const Dashboard = () => {
               <div>
                 <h3 style={{ fontSize: '1.1rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '8px' }}>Ingresos</h3>
                 <div style={{ display: 'flex', alignItems: 'baseline', gap: '12px', marginTop: '8px' }}>
-                  <span style={{ fontSize: '1.5rem', fontWeight: 700 }}>$32,209</span>
-                  <span style={{ fontSize: '0.85rem', color: 'var(--accent-success)', fontWeight: 600 }}>+22% vs mes pasado</span>
+                  <span style={{ fontSize: '1.5rem', fontWeight: 700 }}>{data.metrics.totalRevenue}</span>
+                  <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: 600 }}>0% vs mes pasado</span>
                 </div>
               </div>
               <div style={{ display: 'flex', gap: '16px', fontSize: '0.8rem', fontWeight: 500, color: 'var(--text-muted)' }}>
@@ -470,10 +469,10 @@ const Dashboard = () => {
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
               {[
-                { label: 'Justificadas', width: '80%', color: 'var(--accent-primary)' },
-                { label: 'Pendientes', width: '60%', color: 'var(--accent-warning, #F59E0B)' },
-                { label: 'Falsas Alarmas', width: '20%', color: 'var(--text-muted)' },
-                { label: 'Sancionadas', width: '40%', color: 'var(--accent-danger)' }
+                { label: 'Justificadas', width: '0%', color: 'var(--accent-primary)' },
+                { label: 'Pendientes', width: '0%', color: 'var(--accent-warning, #F59E0B)' },
+                { label: 'Falsas Alarmas', width: '0%', color: 'var(--text-muted)' },
+                { label: 'Sancionadas', width: '0%', color: 'var(--accent-danger)' }
               ].map(item => (
                 <div key={item.label} style={{ display: 'grid', gridTemplateColumns: '95px 1fr', alignItems: 'center', gap: '16px', cursor: 'pointer' }} onClick={() => showToast(`Mostrando lista de Alertas: ${item.label}`)}>
                   <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', fontWeight: 500 }}>{item.label}</span>
@@ -501,10 +500,10 @@ const Dashboard = () => {
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', flex: 1 }}>
                 {[
-                  { rank: 1, name: 'Caja Principal', val: '48%' },
-                  { rank: 2, name: 'Pasillo 3', val: '33%' },
-                  { rank: 3, name: 'Puerta Salida', val: '25%' },
-                  { rank: 4, name: 'Almacén', val: '17%' }
+                  { rank: 1, name: 'Caja Principal', val: '0%' },
+                  { rank: 2, name: 'Pasillo 3', val: '0%' },
+                  { rank: 3, name: 'Puerta Salida', val: '0%' },
+                  { rank: 4, name: 'Almacén', val: '0%' }
                 ].map(c => (
                   <div key={c.rank} className="flex-between" style={{ fontSize: '0.85rem', cursor: 'pointer' }} onClick={() => showToast(`Mostrando métricas de ${c.name}`)}>
                     <span style={{ color: 'var(--text-muted)', fontWeight: 600 }}>{c.rank}</span>
@@ -524,8 +523,8 @@ const Dashboard = () => {
               <MoreHorizontal size={16} color="var(--text-muted)" style={{ cursor: 'pointer' }} onClick={() => showToast("Opciones de modelo IA")} />
             </div>
             <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px', marginBottom: '8px' }}>
-              <span style={{ fontSize: '1.5rem', fontWeight: 700 }}>95%</span>
-              <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}><span style={{ color: 'var(--accent-success)', fontWeight: 600 }}>+2.5%</span> vs mes pasado</span>
+              <span style={{ fontSize: '1.5rem', fontWeight: 700 }}>0%</span>
+              <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}><span style={{ color: 'var(--text-muted)', fontWeight: 600 }}>0%</span> vs mes pasado</span>
             </div>
             <div style={{ display: 'flex', gap: '16px', fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '16px', fontWeight: 500 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><div style={{ width: '8px', height: '8px', background: '#E0E7FF', borderRadius: '50%' }}></div> Falsos +</div>
