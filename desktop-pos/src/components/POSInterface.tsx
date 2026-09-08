@@ -26,7 +26,9 @@ const POSInterface: React.FC<POSInterfaceProps> = ({ salesHistory, setSalesHisto
   const navigate = useNavigate();
   const { currentUser, userData } = useAuth();
   const currency = userData?.currency || '$';
-  const taxRateVal = userData?.taxRate !== undefined ? userData.taxRate / 100 : 0.16;
+  const taxEnabled = userData?.taxEnabled !== false;
+  const baseTax = userData?.taxRate !== undefined ? userData.taxRate / 100 : 0.16;
+  const taxRateVal = taxEnabled ? baseTax : 0;
 
   const [cart, setCart] = useState<any[]>([]);
   const [heldCarts, setHeldCarts] = useState<any[][]>([]);
@@ -484,7 +486,14 @@ const POSInterface: React.FC<POSInterfaceProps> = ({ salesHistory, setSalesHisto
                           borderLeft: `4px solid ${product.color}`
                         }}
                       >
-                        <span style={{ fontWeight: 600, fontSize: '0.9rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{product.name}</span>
+                        <div style={{ display: 'flex', flexDirection: 'column' }}>
+                          <span style={{ fontWeight: 600, fontSize: '0.9rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{product.name}</span>
+                          {product.location && (
+                            <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '4px', marginTop: '4px' }}>
+                              <MapPin size={12} /> {product.location}
+                            </span>
+                          )}
+                        </div>
                         <span style={{ fontSize: '0.9rem', fontWeight: 800, color: 'var(--text-primary)' }}>{currency}{product.price.toFixed(2)}</span>
                       </div>
                     ))}
@@ -658,11 +667,14 @@ const POSInterface: React.FC<POSInterfaceProps> = ({ salesHistory, setSalesHisto
                     <label style={{ display: 'block', fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: '12px' }}>Monto Recibido</label>
                     <div style={{ display: 'flex', gap: '12px', marginBottom: '16px' }}>
                       <input 
-                        type="number" 
+                        type="text" 
                         autoFocus
                         placeholder="0.00"
                         value={amountReceived}
-                        onChange={e => setAmountReceived(e.target.value)}
+                        onChange={e => {
+                          const val = e.target.value.replace(/[^0-9.,]/g, '').replace(',', '.');
+                          setAmountReceived(val);
+                        }}
                         style={{ flex: 1, padding: '16px', fontSize: '1.5rem', fontWeight: 700, borderRadius: 'var(--radius-sm)', border: '2px solid var(--border-medium)', background: 'var(--bg-card)', color: 'var(--text-primary)', outline: 'none' }}
                       />
                       <button className="btn btn-outline" onClick={() => setAmountReceived(total.toFixed(2))} style={{ padding: '0 20px', fontWeight: 700, fontSize: '1.1rem' }}>Exacto</button>
@@ -697,10 +709,14 @@ const POSInterface: React.FC<POSInterfaceProps> = ({ salesHistory, setSalesHisto
               <button 
                 className="btn btn-primary" 
                 onClick={() => {
+                  let finalCash = parseFloat(amountReceived);
+                  if (paymentMethod === 'Efectivo' && (!amountReceived || isNaN(finalCash))) {
+                    finalCash = total; // Si está vacío, asumimos exacto para no bloquear
+                  }
                   setIsPaymentModalOpen(false);
-                  processPayment(paymentMethod === 'Efectivo' ? parseFloat(amountReceived) : undefined, paymentMethod);
+                  processPayment(paymentMethod === 'Efectivo' ? finalCash : undefined, paymentMethod);
                 }}
-                disabled={paymentMethod === 'Efectivo' && (!amountReceived || parseFloat(amountReceived) < parseFloat(total.toFixed(2)))}
+                disabled={paymentMethod === 'Efectivo' && amountReceived !== '' && parseFloat(amountReceived) < total}
                 style={{ width: '100%', padding: '16px', fontSize: '1.2rem', fontWeight: 800 }}
               >
                 Confirmar Pago de {currency}{total.toFixed(2)}

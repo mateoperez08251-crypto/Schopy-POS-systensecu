@@ -14,6 +14,7 @@ const NewReceiving = ({ inventory, setInventory, suppliers, showToast }: { inven
   const [supplierSearch, setSupplierSearch] = useState('');
   const [selectedSupplier, setSelectedSupplier] = useState<any>(null);
   const [showSupplierDropdown, setShowSupplierDropdown] = useState(false);
+  const [orderNotes, setOrderNotes] = useState('');
 
   const [productSearch, setProductSearch] = useState('');
   const [showProductDropdown, setShowProductDropdown] = useState(false);
@@ -113,7 +114,8 @@ const NewReceiving = ({ inventory, setInventory, suppliers, showToast }: { inven
       supplier: selectedSupplier.name,
       items: items.length,
       totalCost: totalCost,
-      user: userData?.name || 'Admin'
+      user: userData?.name || 'Admin',
+      notes: orderNotes
     });
 
     // Generar PDF
@@ -161,10 +163,14 @@ const NewReceiving = ({ inventory, setInventory, suppliers, showToast }: { inven
     doc.text(`RNC / Cédula: ${selectedSupplier.rnc}`, 14, 72);
     doc.text(`Contacto: ${selectedSupplier.contact}`, 120, 65);
     doc.text(`Teléfono: ${selectedSupplier.phone}`, 120, 72);
+    
+    if (orderNotes) {
+      doc.text(`Notas/Devoluciones: ${orderNotes}`, 14, 79);
+    }
 
     // Separador
     doc.setDrawColor(200, 200, 200);
-    doc.line(14, 80, 196, 80);
+    doc.line(14, 85, 196, 85);
 
     // Tabla de Productos
     const tableData = items.map(item => {
@@ -183,7 +189,7 @@ const NewReceiving = ({ inventory, setInventory, suppliers, showToast }: { inven
     });
 
     autoTable(doc, {
-      startY: 90,
+      startY: 95,
       head: [['Código/SKU', 'Producto', 'Cant.', 'Costo Unit.', 'Total']],
       body: tableData,
       theme: 'grid',
@@ -335,6 +341,25 @@ const NewReceiving = ({ inventory, setInventory, suppliers, showToast }: { inven
             </div>
           )}
 
+          {/* Notas de devoluciones / pedidos */}
+          <div style={{ marginTop: '16px' }}>
+            <label style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '8px', display: 'block' }}>
+              Notas (Devoluciones, Pedidos Pendientes...)
+            </label>
+            <div style={{ position: 'relative' }}>
+              <FileText size={20} color="var(--text-muted)" style={{ position: 'absolute', left: '16px', top: '16px', zIndex: 1 }} />
+              <textarea 
+                placeholder="Escribe notas relevantes para este pedido o proveedor..." 
+                value={orderNotes}
+                onChange={(e) => setOrderNotes(e.target.value)}
+                style={{ 
+                  width: '100%', padding: '16px 16px 16px 44px', borderRadius: 'var(--radius-md)', 
+                  border: '1px solid var(--border-medium)', background: 'var(--bg-card)', 
+                  color: 'var(--text-primary)', outline: 'none', resize: 'vertical', minHeight: '80px'
+                }}
+              />
+            </div>
+          </div>
         </div>
       </div>
 

@@ -17,6 +17,7 @@ const Settings = () => {
   
   const [currency, setCurrency] = useState('$');
   const [taxRate, setTaxRate] = useState('16');
+  const [taxEnabled, setTaxEnabled] = useState(true);
   
   const [ticketFooter, setTicketFooter] = useState('¡Gracias por su compra!');
   
@@ -41,6 +42,7 @@ const Settings = () => {
           if (data.taxId) setTaxId(data.taxId);
           if (data.currency) setCurrency(data.currency);
           if (data.taxRate !== undefined) setTaxRate(data.taxRate.toString());
+          if (data.taxEnabled !== undefined) setTaxEnabled(data.taxEnabled);
           if (data.ticketFooter) setTicketFooter(data.ticketFooter);
           if (data.requirePinForDiscount !== undefined) setRequirePinForDiscount(data.requirePinForDiscount);
           if (data.requirePinForDelete !== undefined) setRequirePinForDelete(data.requirePinForDelete);
@@ -68,6 +70,7 @@ const Settings = () => {
         taxId,
         currency,
         taxRate: parseFloat(taxRate) || 0,
+        taxEnabled,
         ticketFooter,
         requirePinForDiscount,
         requirePinForDelete
@@ -220,9 +223,15 @@ const Settings = () => {
             </div>
             <div>
               <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '6px' }}>ITBIS / Impuesto (%)</label>
-              <div style={{ position: 'relative' }}>
-                <Percent size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
-                <input type="number" step="0.1" min="0" value={taxRate} onChange={e => setTaxRate(e.target.value)} onWheel={(e) => (e.target as HTMLInputElement).blur()} placeholder="Ej. 18" style={{ width: '100%', padding: '10px 10px 10px 36px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-medium)', background: 'var(--bg-app)', color: 'var(--text-primary)', outline: 'none' }} />
+              <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                <div style={{ position: 'relative', flex: 1 }}>
+                  <Percent size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+                  <input type="number" step="0.1" min="0" value={taxRate} onChange={e => setTaxRate(e.target.value)} onWheel={(e) => (e.target as HTMLInputElement).blur()} placeholder="Ej. 18" disabled={!taxEnabled} style={{ width: '100%', padding: '10px 10px 10px 36px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-medium)', background: 'var(--bg-app)', color: 'var(--text-primary)', outline: 'none', opacity: taxEnabled ? 1 : 0.5 }} />
+                </div>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', whiteSpace: 'nowrap', fontSize: '0.9rem', fontWeight: 600 }}>
+                  <input type="checkbox" checked={taxEnabled} onChange={e => setTaxEnabled(e.target.checked)} style={{ width: '18px', height: '18px', accentColor: 'var(--accent-primary)' }} />
+                  Activar IVA
+                </label>
               </div>
             </div>
           </div>

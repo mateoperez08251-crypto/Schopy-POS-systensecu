@@ -12,6 +12,7 @@ export interface UserData {
   uid?: string;
   currency?: string;
   taxRate?: number;
+  taxEnabled?: boolean;
   companyName?: string;
   taxId?: string;
   address?: string;
@@ -59,7 +60,12 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
     if (savedPin) {
       const user = getStaffByPin(savedPin);
       if (user) {
-        setCurrentUser(user);
+        let storeSettings = {};
+        try {
+          const stored = localStorage.getItem('schopy_store_settings');
+          if (stored) storeSettings = JSON.parse(stored);
+        } catch(e) {}
+        setCurrentUser({ ...user, ...storeSettings });
       }
     }
     setLoading(false);
@@ -71,7 +77,12 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
       if (expectedUserId && user.id !== expectedUserId) {
         return false;
       }
-      setCurrentUser(user);
+      let storeSettings = {};
+      try {
+        const stored = localStorage.getItem('schopy_store_settings');
+        if (stored) storeSettings = JSON.parse(stored);
+      } catch(e) {}
+      setCurrentUser({ ...user, ...storeSettings });
       sessionStorage.setItem('schopy_active_pin', pin);
       return true;
     }
@@ -79,7 +90,12 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
   };
 
   const forceLogin = (user: UserData) => {
-    setCurrentUser(user);
+    let storeSettings = {};
+    try {
+      const stored = localStorage.getItem('schopy_store_settings');
+      if (stored) storeSettings = JSON.parse(stored);
+    } catch(e) {}
+    setCurrentUser({ ...user, ...storeSettings });
     sessionStorage.setItem('schopy_active_pin', user.pin || '');
   };
 
