@@ -12,7 +12,6 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
 
-  const [isRegistering, setIsRegistering] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -22,11 +21,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
     setLoading(true);
     
     try {
-      if (isRegistering) {
-        await createUserWithEmailAndPassword(auth, email, password);
-      } else {
-        await signInWithEmailAndPassword(auth, email, password);
-      }
+      await signInWithEmailAndPassword(auth, email, password);
       onLogin();
     } catch (err: any) {
       console.error(err);
@@ -35,7 +30,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
       } else if (err.code === 'auth/weak-password') {
         setError('La contraseña debe tener al menos 6 caracteres.');
       } else {
-        setError(isRegistering ? 'Error al registrar la cuenta.' : 'Credenciales incorrectas o usuario no existe.');
+        setError('Credenciales incorrectas o usuario no existe.');
       }
     } finally {
       setLoading(false);
@@ -105,17 +100,14 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
             </label>
           </div>
           
-          <div className="frg_pss" style={{ display: 'flex', justifyContent: 'space-between' }}>
+          <div className="frg_pss" style={{ display: 'flex', justifyContent: 'center', margin: '1rem 0' }}>
             <a href="#">¿Olvidaste tu contraseña?</a>
-            <a href="#" onClick={(e) => { e.preventDefault(); setIsRegistering(!isRegistering); setError(''); }}>
-              {isRegistering ? '¿Ya tienes cuenta? Inicia sesión' : '¿No tienes cuenta? Regístrate'}
-            </a>
           </div>
           
           {error && <div style={{ color: '#ef4444', fontSize: '0.85rem', marginTop: '8px', textAlign: 'center' }}>{error}</div>}
           
           <button type="submit" className="submit" disabled={loading}>
-            {loading ? 'Procesando...' : (isRegistering ? 'Crear Cuenta' : 'Entrar')}
+            {loading ? 'Procesando...' : 'Entrar'}
           </button>
 
           <div style={{ marginTop: '2rem', textAlign: 'center', width: '100%' }}>

@@ -2,6 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { Search, ShoppingCart, Trash2, Plus, Minus, CreditCard, Banknote, PauseCircle, PlayCircle, Printer, MessageCircle, Tag, Package, X, Calendar, MapPin, StickyNote, FileText, History } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
+import { logAuditEvent } from '../firebase/auditService';
 
 const categories = ['Todos', 'Bebidas', 'Snacks', 'Abarrotes', 'Limpieza', 'Electrónica'];
 
@@ -28,6 +30,10 @@ interface POSInterfaceProps {
 
 const POSInterface: React.FC<POSInterfaceProps> = ({ salesHistory, setSalesHistory, isVoucherMode, onOpenVoucher, onCloseVoucher }) => {
   const navigate = useNavigate();
+  const { currentUser, userData } = useAuth();
+  const currency = userData?.currency || '$';
+  const taxRateVal = userData?.taxRate !== undefined ? userData.taxRate / 100 : 0.16;
+
   const [cart, setCart] = useState<any[]>([]);
   const [heldCarts, setHeldCarts] = useState<any[][]>([]);
   
@@ -58,7 +64,7 @@ const POSInterface: React.FC<POSInterfaceProps> = ({ salesHistory, setSalesHisto
   );
 
   const subtotal = cart.reduce((acc, item) => acc + ((item.price * item.quantity) * (1 - (item.discount || 0)/100)), 0);
-  const tax = subtotal * 0.16;
+  const tax = subtotal * taxRateVal;
   const total = parseFloat((subtotal + tax).toFixed(2));
 
   useEffect(() => {
@@ -103,7 +109,20 @@ const POSInterface: React.FC<POSInterfaceProps> = ({ salesHistory, setSalesHisto
     });
   };
 
-  const handleRemove = (id: number) => setCart(cart.filter(item => item.id !== id));
+  const handleRemove = (id: number) => {
+    const item = cart.find(i => i.id === id);
+    if (item && currentUser && userData?.companyId) {
+      logAuditEvent(
+        userData.companyId,
+        currentUser.uid,
+        userData.name,
+        'Producto Eliminado',
+        `Se eliminó ${item.name} del carrito actual.`,
+        'warning'
+      );
+    }
+    setCart(cart.filter(item => item.id !== id));
+  };
   const updateQuantity = (id: number, delta: number) => {
     setCart(cart.map(item => item.id === id ? { ...item, quantity: Math.max(1, item.quantity + delta) } : item));
   };
@@ -111,6 +130,16 @@ const POSInterface: React.FC<POSInterfaceProps> = ({ salesHistory, setSalesHisto
   const applyModifier = (e: React.FormEvent) => {
     e.preventDefault();
     if (modifierItem) {
+      if (modifierItem.discount && modifierItem.discount > 0 && currentUser && userData?.companyId) {
+        logAuditEvent(
+          userData.companyId,
+          currentUser.uid,
+          userData.name,
+          'Descuento Aplicado',
+          `Se aplicó un descuento del ${modifierItem.discount}% a ${modifierItem.name}.`,
+          'warning'
+        );
+      }
       setCart(cart.map(item => item.id === modifierItem.id ? modifierItem : item));
       setModifierItem(null);
     }
@@ -137,6 +166,17 @@ const POSInterface: React.FC<POSInterfaceProps> = ({ salesHistory, setSalesHisto
         time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
       };
       setSalesHistory([newSale, ...salesHistory]);
+
+      if (currentUser && userData?.companyId) {
+        logAuditEvent(
+          userData.companyId,
+          currentUser.uid,
+          userData.name,
+          'Venta Completada',
+          `Venta #${newSale.id} por ${currency}${newSale.total.toFixed(2)} (${newSale.paymentMethod}). ${newSale.items.length} productos.`,
+          'info'
+        );
+      }
     }, 400);
   };
 
@@ -164,7 +204,7 @@ const POSInterface: React.FC<POSInterfaceProps> = ({ salesHistory, setSalesHisto
       itemsHtml += `
         <tr>
           <td style="padding: 4px 0; font-size: 12px;">${item.name} x${item.quantity}</td>
-          <td style="padding: 4px 0; text-align: right; font-size: 12px;">$${((item.price * item.quantity) * (1 - (item.discount || 0)/100)).toFixed(2)}</td>
+          <td style="padding: 4px 0; text-align: right; font-size: 12px;">${currency}${((item.price * item.quantity) * (1 - (item.discount || 0)/100)).toFixed(2)}</td>
         </tr>
       `;
     });
@@ -187,7 +227,10 @@ const POSInterface: React.FC<POSInterfaceProps> = ({ salesHistory, setSalesHisto
       </head>
       <body>
         <div class="header">
-          <h2>TICKET DE COMPRA</h2>
+          <h2>${userData?.companyName || 'SCHOPY POS'}</h2>
+          ${userData?.taxId ? `<p>RNC: ${userData.taxId}</p>` : ''}
+          ${userData?.address ? `<p>${userData.address}</p>` : ''}
+          ${userData?.phone ? `<p>Tel: ${userData.phone}</p>` : ''}
           <p>Ticket #${lastSale.id}</p>
           <p>Fecha: ${lastSale.date} ${lastSale.time}</p>
           ${lastSale.client ? `<p>Cliente: ${lastSale.client}</p>` : ''}
@@ -199,10 +242,10 @@ const POSInterface: React.FC<POSInterfaceProps> = ({ salesHistory, setSalesHisto
           </tbody>
         </table>
         <div class="divider"></div>
-        <div class="total">Total: $${lastSale.total.toFixed(2)}</div>
+        <div class="total">Total: ${currency}${lastSale.total.toFixed(2)}</div>
         <p style="text-align: right; font-size: 12px; margin: 4px 0;">Método: ${lastSale.paymentMethod}</p>
         <div class="footer">
-          <p>¡Gracias por su compra!</p>
+          <p>${userData?.ticketFooter || '¡Gracias por su compra!'}</p>
           <p style="font-size: 10px; margin-top: 10px;">Schopy POS System</p>
         </div>
         <script>
@@ -217,9 +260,18 @@ const POSInterface: React.FC<POSInterfaceProps> = ({ salesHistory, setSalesHisto
     printWindow.document.close();
   };
 
-  const handleEmptyCart = () => {
+  const clearCart = () => {
+    if (cart.length > 0 && currentUser && userData?.companyId) {
+      logAuditEvent(
+        userData.companyId,
+        currentUser.uid,
+        userData.name,
+        'Carrito Cancelado',
+        `Se canceló una venta en progreso de ${currency}${total.toFixed(2)} con ${cart.length} productos.`,
+        'warning'
+      );
+    }
     setCart([]);
-    searchInputRef.current?.focus();
   };
 
   const openPaymentModal = () => {
@@ -279,6 +331,7 @@ const POSInterface: React.FC<POSInterfaceProps> = ({ salesHistory, setSalesHisto
               <PlayCircle size={18} /> Retomar Venta ({heldCarts.length})
             </button>
           )}
+          
           <button className="btn btn-outline" onClick={handlePauseSale} disabled={cart.length === 0} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <PauseCircle size={18} /> Pausar
           </button>
@@ -378,7 +431,7 @@ const POSInterface: React.FC<POSInterfaceProps> = ({ salesHistory, setSalesHisto
                         }}
                       >
                         <span style={{ fontWeight: 600, fontSize: '0.9rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{product.name}</span>
-                        <span style={{ fontSize: '0.9rem', fontWeight: 800, color: 'var(--text-primary)' }}>${product.price.toFixed(2)}</span>
+                        <span style={{ fontSize: '0.9rem', fontWeight: 800, color: 'var(--text-primary)' }}>{currency}{product.price.toFixed(2)}</span>
                       </div>
                     ))}
                   </div>
@@ -394,7 +447,7 @@ const POSInterface: React.FC<POSInterfaceProps> = ({ salesHistory, setSalesHisto
                 <ShoppingCart size={20} color="var(--accent-primary)" /> Productos Agregados ({cart.length})
               </h3>
               {cart.length > 0 && (
-                <button onClick={handleEmptyCart} className="btn btn-outline" style={{ padding: '6px 12px', fontSize: '0.8rem', color: 'var(--accent-danger)', borderColor: 'var(--accent-danger)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <button onClick={clearCart} className="btn btn-outline" style={{ padding: '6px 12px', fontSize: '0.8rem', color: 'var(--accent-danger)', borderColor: 'var(--accent-danger)', display: 'flex', alignItems: 'center', gap: '6px' }}>
                   <Trash2 size={14} /> Vaciar Carrito
                 </button>
               )}
@@ -421,7 +474,7 @@ const POSInterface: React.FC<POSInterfaceProps> = ({ salesHistory, setSalesHisto
                     }}>
                       <div style={{ minWidth: 0, flex: 1, marginRight: '16px' }}>
                         <div style={{ fontWeight: 700, fontSize: '0.95rem', marginBottom: '2px' }}>{item.name}</div>
-                        <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>${item.price.toFixed(2)} c/u</div>
+                        <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{currency}{item.price.toFixed(2)} c/u</div>
                       </div>
                       
                       <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
@@ -432,7 +485,7 @@ const POSInterface: React.FC<POSInterfaceProps> = ({ salesHistory, setSalesHisto
                         </div>
                         
                         <div style={{ fontWeight: 800, color: 'var(--accent-primary)', fontSize: '1rem', width: '70px', textAlign: 'right' }}>
-                          ${((item.price * item.quantity) * (1 - (item.discount || 0)/100)).toFixed(2)}
+                          {currency}{((item.price * item.quantity) * (1 - (item.discount || 0)/100)).toFixed(2)}
                         </div>
                         
                         <div style={{ display: 'flex', gap: '4px' }}>
@@ -453,7 +506,7 @@ const POSInterface: React.FC<POSInterfaceProps> = ({ salesHistory, setSalesHisto
         </div>
 
         {/* Columna Derecha: Solo Cobro y Totales */}
-        <div style={{ flex: '1', display: 'flex', flexDirection: 'column', minWidth: '300px', maxWidth: '360px' }}>
+        <div style={{ flex: '1', display: 'flex', flexDirection: 'column', minWidth: '300px', maxWidth: '360px', gap: '16px' }}>
           
           <div className="card" style={{ padding: '20px', display: 'flex', flexDirection: 'column', flex: 1 }}>
             
@@ -464,16 +517,16 @@ const POSInterface: React.FC<POSInterfaceProps> = ({ salesHistory, setSalesHisto
             <div style={{ background: 'var(--bg-app)', padding: '16px', borderRadius: 'var(--radius-md)', marginBottom: '24px' }}>
               <div className="flex-between" style={{ marginBottom: '12px', color: 'var(--text-secondary)' }}>
                 <span>Subtotal</span>
-                <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>${subtotal.toFixed(2)}</span>
+                <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{currency}{subtotal.toFixed(2)}</span>
               </div>
               <div className="flex-between" style={{ marginBottom: '16px', color: 'var(--text-secondary)' }}>
-                <span>IVA (16%)</span>
-                <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>${tax.toFixed(2)}</span>
+                <span>IVA/Tax ({(taxRateVal * 100).toFixed(0)}%)</span>
+                <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{currency}{tax.toFixed(2)}</span>
               </div>
               <div style={{ borderTop: '2px dashed var(--border-light)', margin: '16px 0' }}></div>
               <div className="flex-between">
                 <span style={{ fontSize: '1.2rem', fontWeight: 700 }}>Total</span>
-                <span style={{ fontSize: '2rem', fontWeight: 800, color: 'var(--accent-primary)' }}>${total.toFixed(2)}</span>
+                <span style={{ fontSize: '2rem', fontWeight: 800, color: 'var(--accent-primary)' }}>{currency}{total.toFixed(2)}</span>
               </div>
             </div>
 
@@ -485,7 +538,7 @@ const POSInterface: React.FC<POSInterfaceProps> = ({ salesHistory, setSalesHisto
               style={{ width: '100%', padding: '24px 20px', fontSize: '1.4rem', fontWeight: 800, marginTop: 'auto', opacity: cart.length === 0 ? 0.5 : 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
             >
               <span>Cobrar</span>
-              <span>${total.toFixed(2)}</span>
+              <span>{currency}{total.toFixed(2)}</span>
             </button>
           </div>
           
@@ -529,7 +582,7 @@ const POSInterface: React.FC<POSInterfaceProps> = ({ salesHistory, setSalesHisto
               <div style={{ padding: '20px', background: 'var(--bg-app)' }}>
                 <div style={{ textAlign: 'center', marginBottom: '20px', padding: '16px', background: 'var(--bg-card)', borderRadius: '12px', border: '1px solid var(--border-light)' }}>
                   <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', marginBottom: '4px', marginTop: 0 }}>Total a Pagar</p>
-                  <p style={{ fontSize: '2.5rem', fontWeight: 800, color: 'var(--accent-primary)', margin: 0 }}>${total.toFixed(2)}</p>
+                  <p style={{ fontSize: '2.5rem', fontWeight: 800, color: 'var(--accent-primary)', margin: 0 }}>{currency}{total.toFixed(2)}</p>
                 </div>
 
                 <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: '8px' }}>Método de Pago</label>
@@ -564,7 +617,7 @@ const POSInterface: React.FC<POSInterfaceProps> = ({ salesHistory, setSalesHisto
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px', marginBottom: '16px' }}>
                       {[20, 50, 100, 500].map(amt => (
                         <button key={amt} onClick={() => setAmountReceived(amt.toString())} className="btn btn-outline" style={{ padding: '12px', fontSize: '1.1rem', fontWeight: 700, color: 'var(--accent-success)' }}>
-                          ${amt}
+                          {currency}{amt}
                         </button>
                       ))}
                     </div>
@@ -572,7 +625,7 @@ const POSInterface: React.FC<POSInterfaceProps> = ({ salesHistory, setSalesHisto
                     {parseFloat(amountReceived) >= total && (
                       <div style={{ background: 'rgba(16, 185, 129, 0.1)', padding: '16px', borderRadius: '12px', border: '1px solid var(--accent-success)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <span style={{ fontWeight: 700, color: 'var(--text-secondary)', fontSize: '1.1rem' }}>Cambio a devolver:</span>
-                        <span style={{ fontSize: '1.8rem', fontWeight: 800, color: 'var(--accent-success)' }}>${(parseFloat(amountReceived) - total).toFixed(2)}</span>
+                        <span style={{ fontSize: '1.8rem', fontWeight: 800, color: 'var(--accent-success)' }}>{currency}{(parseFloat(amountReceived) - total).toFixed(2)}</span>
                       </div>
                     )}
                   </div>
@@ -596,7 +649,7 @@ const POSInterface: React.FC<POSInterfaceProps> = ({ salesHistory, setSalesHisto
                 disabled={paymentMethod === 'Efectivo' && (parseFloat(amountReceived) < total || !amountReceived)}
                 style={{ width: '100%', padding: '16px', fontSize: '1.2rem', fontWeight: 800 }}
               >
-                Confirmar Pago de ${total.toFixed(2)}
+                Confirmar Pago de {currency}{total.toFixed(2)}
               </button>
             </div>
           </div>
@@ -624,7 +677,7 @@ const POSInterface: React.FC<POSInterfaceProps> = ({ salesHistory, setSalesHisto
                   <div style={{ background: 'rgba(16, 185, 129, 0.1)', padding: '16px', borderRadius: '12px', border: '1px solid var(--accent-success)', margin: '16px 0', width: '100%' }}>
                     <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', marginBottom: '4px', textAlign: 'center' }}>Vuelto a entregar:</p>
                     <p style={{ fontSize: '2rem', fontWeight: 800, color: 'var(--accent-success)', textAlign: 'center', margin: 0 }}>
-                      ${(quickCash - total).toFixed(2)}
+                      {currency}{(quickCash - total).toFixed(2)}
                     </p>
                   </div>
                 )}

@@ -1,0 +1,53 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // 1. Reglas para la colección de usuarios y empresas
+    match /users/{userId} {
+      allow read: if request.auth != null && (
+        request.auth.uid == userId || 
+        request.auth.token.email == "mateoperez08251@gmail.com" ||
+        true
+      );
+      
+      allow write: if request.auth != null && (
+        request.auth.uid == userId ||
+        request.auth.token.email == "mateoperez08251@gmail.com"
+      );
+    }
+
+    // 2. Reglas ESPECÍFICAS para la App Móvil 
+    // (Permite que el dashboard lea productos, auditorías, ventas y monitor aunque no haya sesión iniciada)
+    match /audit_logs/{logId} {
+      allow read: if true;  // Permite a la app leer los logs sin login
+      allow write: if request.auth != null;
+    }
+
+    match /products/{productId} {
+      allow read: if true;  // Permite a la app leer los productos sin login
+      allow write: if request.auth != null;
+    }
+
+    // Nuevas reglas añadidas para el Dashboard, Monitor y Caja
+    match /sales/{saleId} {
+      allow read: if true; // Permite a la app leer ventas sin login
+      allow write: if request.auth != null;
+    }
+
+    match /ai_evidences/{evidenceId} {
+      allow read: if true; // Permite a la app leer evidencias de IA sin login
+      allow write: if request.auth != null;
+    }
+
+    match /cash_registers/{registerId} {
+      allow read: if true; // Permite a la app leer los cierres de caja sin login
+      allow write: if request.auth != null;
+    }
+
+    // 3. Regla global de respaldo (Para clientes, inventario profundo, etc.)
+    match /{document=**} {
+      // Todo lo demás requiere estar logueado obligatoriamente
+      allow read, write: if request.auth != null;
+    }
+  }
+}

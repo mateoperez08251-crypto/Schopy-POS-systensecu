@@ -3,7 +3,7 @@ import { NavLink } from 'react-router-dom';
 import { 
   LayoutDashboard, ShoppingBag, Package, Calendar as CalendarIcon, 
   BarChart2, ShieldAlert, MoreHorizontal, Settings, HelpCircle, 
-  ArrowUpRight, LogOut, Menu, X, Truck, Users
+  ArrowUpRight, LogOut, Menu, X, Truck, Users, Wallet
 } from 'lucide-react';
 
 const Sidebar = () => {
@@ -21,6 +21,7 @@ const Sidebar = () => {
         { label: 'Historial', path: '/sales-history' }
       ]
     },
+    { icon: Wallet, label: 'Caja & Cortes', path: '/cash-register' },
     { icon: Package, label: 'Inventario', path: '/inventory' },
     {
       icon: Truck,
@@ -33,8 +34,7 @@ const Sidebar = () => {
     },
     { icon: Users, label: 'Clientes', path: '/customers' },
     { icon: ShieldAlert, label: 'Personal (Cajeros)', path: '/staff' },
-    { icon: ShieldAlert, label: 'Auditoría IA', path: '/audit' },
-    { icon: BarChart2, label: 'Reportes', path: '/reports' }
+    { icon: ShieldAlert, label: 'Auditoría IA', path: '/audit' }
   ];
 
   const [expandedMenu, setExpandedMenu] = useState<string | null>('Ventas');
@@ -162,7 +162,7 @@ const Sidebar = () => {
               Clientes Frecuentes 
               <span style={{marginLeft:'auto',fontSize:'0.75rem',color:'var(--text-muted)'}}>89</span>
             </NavLink>
-            <NavLink to="/reports" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} style={{ textDecoration: 'none' }} onClick={() => { setExpandedMenu(null); setIsCollapsed(true); }}>
+            <NavLink to="/sales-history" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} style={{ textDecoration: 'none' }} onClick={() => { setExpandedMenu(null); setIsCollapsed(true); }}>
               <div style={{width:'8px',height:'8px',borderRadius:'50%',border:'2px solid var(--text-muted)', flexShrink: 0}}></div> 
               Cortes de Caja 
               <span style={{marginLeft:'auto',fontSize:'0.75rem',color:'var(--text-muted)'}}>32</span>
@@ -171,28 +171,13 @@ const Sidebar = () => {
         )}
       </nav>
 
-      {/* Almacenamiento y Footer */}
+      {/* Footer */}
       <div style={{ marginTop: 'auto' }}>
-        {!isCollapsed && (
-          <div style={{ background: 'var(--bg-app)', padding: '16px', borderRadius: 'var(--radius-md)', marginBottom: '24px' }}>
-            <div className="flex-between" style={{ marginBottom: '8px' }}>
-              <span style={{ fontSize: '0.8rem', fontWeight: 600 }}>Clips de Video (IA)</span>
-              <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>90%</span>
-            </div>
-            <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '12px' }}>1.8 GB de 2 GB usados</p>
-            <div style={{ height: '6px', background: '#FCA5A5', borderRadius: '3px', width: '100%', overflow: 'hidden' }}>
-              <div style={{ height: '100%', background: 'var(--accent-danger)', width: '90%' }}></div>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '16px', fontSize: '0.8rem', fontWeight: 500, cursor: 'pointer', color: 'var(--text-primary)' }}>
-              <ArrowUpRight size={16} /> Ampliar Almacenamiento
-            </div>
-          </div>
-        )}
 
-        <div className="nav-item" style={{ justifyContent: isCollapsed ? 'center' : 'flex-start' }} title={isCollapsed ? 'Configuración' : undefined}>
+        <NavLink to="/settings" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} style={{ textDecoration: 'none', justifyContent: isCollapsed ? 'center' : 'flex-start' }} title={isCollapsed ? 'Configuración' : undefined} onClick={() => { setExpandedMenu(null); setIsCollapsed(true); }}>
           <Settings size={18} style={{ flexShrink: 0 }} />
           {!isCollapsed && 'Configuración'}
-        </div>
+        </NavLink>
         <div className="nav-item" style={{ justifyContent: isCollapsed ? 'center' : 'flex-start' }} title={isCollapsed ? 'Centro de Ayuda' : undefined}>
           <HelpCircle size={18} style={{ flexShrink: 0 }} />
           {!isCollapsed && 'Centro de Ayuda'}

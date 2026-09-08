@@ -23,6 +23,9 @@ import Customers from './pages/Customers';
 import Staff from './pages/Staff';
 import Setup from './pages/Setup';
 import Expired from './pages/Expired';
+import Settings from './pages/Settings';
+// Pantalla de Cierre de Caja
+import CashRegister from './pages/CashRegister';
 
 import { useAuth } from './context/AuthContext';
 import { subscribeToInventory } from './firebase/inventoryService';
@@ -96,6 +99,7 @@ function App() {
             <Route path="/pos" element={<POS salesHistory={salesHistory} setSalesHistory={setSalesHistory} />} />
             <Route path="/voucher-pos" element={<VoucherPOS salesHistory={salesHistory} setSalesHistory={setSalesHistory} />} />
             <Route path="/sales-history" element={<SalesHistory salesHistory={salesHistory} />} />
+            <Route path="/cash-register" element={<CashRegister salesHistory={salesHistory} setSalesHistory={setSalesHistory} showToast={showToast} />} />
             <Route path="/inventory" element={<Inventory inventory={inventory} setInventory={setInventory} showToast={showToast} />} />
             <Route path="/suppliers" element={<Suppliers suppliers={suppliers} setSuppliers={setSuppliers} showToast={showToast} />} />
             <Route path="/customers" element={<Customers customers={customers} setCustomers={setCustomers} showToast={showToast} />} />
@@ -103,6 +107,7 @@ function App() {
             <Route path="/receivings/new" element={<NewReceiving inventory={inventory} setInventory={setInventory} suppliers={suppliers} showToast={showToast} />} />
             <Route path="/receivings" element={<Receivings suppliers={suppliers} />} />
             <Route path="/audit" element={<Audit />} />
+            <Route path="/settings" element={<Settings />} />
             <Route path="*" element={<div style={{padding: '40px', flex:1}}><h2>Página en construcción</h2></div>} />
           </Routes>
         </div>

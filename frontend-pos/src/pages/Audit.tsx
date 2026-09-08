@@ -1,15 +1,9 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import TopNav from "../components/TopNav";
 import { ShieldAlert, AlertTriangle, Search, Filter, Play, CheckCircle2, XCircle, Activity, Database, Clock } from "lucide-react";
 import VideoEvidenceModal from "../components/audit/VideoEvidenceModal";
-
-const SYSTEM_LOGS = [
-  { id: "LOG-902", time: "11:45 AM", user: "Admin", action: "CREAR_PRODUCTO", details: "Se agregó 'Coca Cola 2L' al inventario (Stock: 50)" },
-  { id: "LOG-901", time: "11:30 AM", user: "Cajero Carlos R.", action: "NUEVA_VENTA", details: "Venta procesada #1042 por $124.50" },
-  { id: "LOG-900", time: "10:42 AM", user: "Sistema IA", action: "ALERTA_GENERADA", details: "Alerta INC-2039 generada por Omisión de Escaneo" },
-  { id: "LOG-899", time: "09:15 AM", user: "Supervisor Ana M.", action: "REVISION_ALERTA", details: "Alerta INC-2038 marcada como Revisada" },
-  { id: "LOG-898", time: "08:00 AM", user: "Sistema", action: "INICIO_TURNO", details: "Caja 1 abierta con $100.00 de fondo" },
-];
+import { useAuth } from '../context/AuthContext';
+import { subscribeToAuditLogs, type AuditEvent } from '../firebase/auditService';
 
 const INITIAL_INCIDENTS = [
   {
@@ -52,12 +46,23 @@ const INITIAL_INCIDENTS = [
 ];
 
 const Audit = () => {
+  const { userData } = useAuth();
   const [activeTab, setActiveTab] = useState<'AI' | 'SYSTEM'>('AI');
   const [incidents, setIncidents] = useState(INITIAL_INCIDENTS);
+  const [systemLogs, setSystemLogs] = useState<AuditEvent[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [filter, setFilter] = useState("Todos");
   const [showFilters, setShowFilters] = useState(false);
   const [selectedIncident, setSelectedIncident] = useState<any | null>(null);
+
+  useEffect(() => {
+    if (userData?.companyId) {
+      const unsubscribe = subscribeToAuditLogs(userData.companyId, (logs) => {
+        setSystemLogs(logs);
+      });
+      return () => unsubscribe();
+    }
+  }, [userData?.companyId]);
 
   const pendingCount = incidents.filter(i => i.status === "Pendiente").length;
   const highRiskCount = incidents.filter(i => i.risk === "Alto" && i.status === "Pendiente").length;
@@ -267,9 +272,14 @@ const Audit = () => {
             </tbody>
           </table>
         </div>
-          </>
+        </>
         ) : (
           <div className="card" style={{ overflow: 'hidden' }}>
+            <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border-light)', background: 'var(--bg-card)' }}>
+              <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Database size={18} color="var(--accent-primary)" /> Registros del Sistema en Tiempo Real
+              </h3>
+            </div>
             <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
               <thead>
                 <tr style={{ background: 'var(--bg-app)', borderBottom: '1px solid var(--border-light)' }}>
@@ -280,22 +290,30 @@ const Audit = () => {
                 </tr>
               </thead>
               <tbody>
-                {SYSTEM_LOGS.map(log => (
-                  <tr key={log.id} style={{ borderBottom: '1px solid var(--border-light)' }} className="hover:bg-[var(--bg-app)]">
-                    <td style={{ padding: '16px 20px', color: 'var(--text-secondary)' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <Clock size={14} /> {log.time}
-                      </div>
+                {systemLogs.length === 0 ? (
+                  <tr>
+                    <td colSpan={4} style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted)' }}>
+                      No hay registros aún...
                     </td>
-                    <td style={{ padding: '16px 20px', fontWeight: 600, color: 'var(--text-primary)' }}>{log.user}</td>
-                    <td style={{ padding: '16px 20px' }}>
-                      <span style={{ background: 'var(--bg-app)', padding: '4px 8px', borderRadius: '4px', fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-                        {log.action}
-                      </span>
-                    </td>
-                    <td style={{ padding: '16px 20px', color: 'var(--text-secondary)' }}>{log.details}</td>
                   </tr>
-                ))}
+                ) : (
+                  systemLogs.map(log => (
+                    <tr key={log.id} style={{ borderBottom: '1px solid var(--border-light)' }} className="hover:bg-[var(--bg-app)]">
+                      <td style={{ padding: '16px 20px', color: 'var(--text-secondary)' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <Clock size={14} /> {log.timestamp ? new Date(log.timestamp.seconds * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Ahora'}
+                        </div>
+                      </td>
+                      <td style={{ padding: '16px 20px', fontWeight: 600, color: 'var(--text-primary)' }}>{log.userName}</td>
+                      <td style={{ padding: '16px 20px' }}>
+                        <span style={{ background: log.severity === 'warning' ? 'rgba(245, 158, 11, 0.1)' : 'rgba(59, 130, 246, 0.1)', padding: '4px 8px', borderRadius: '4px', fontSize: '0.8rem', fontWeight: 700, color: log.severity === 'warning' ? '#F59E0B' : '#3B82F6' }}>
+                          {log.action}
+                        </span>
+                      </td>
+                      <td style={{ padding: '16px 20px', color: 'var(--text-secondary)' }}>{log.details}</td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>
