@@ -121,10 +121,6 @@ const Sidebar = ({ onOpenRestockModal }: { onOpenRestockModal?: () => void }) =>
                 className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
                 style={{ textDecoration: 'none', justifyContent: isCollapsed ? 'center' : 'flex-start' }}
                 title={isCollapsed ? item.label : undefined}
-                onClick={() => {
-                  setExpandedMenu(null);
-                  setIsCollapsed(true);
-                }}
               >
                 <item.icon size={18} style={{ flexShrink: 0 }} />
                 {!isCollapsed && <span style={{ whiteSpace: 'nowrap' }}>{item.label}</span>}
@@ -140,7 +136,6 @@ const Sidebar = ({ onOpenRestockModal }: { onOpenRestockModal?: () => void }) =>
                       key={sub.label}
                       onClick={() => {
                         if (sub.action === 'restock' && onOpenRestockModal) onOpenRestockModal();
-                        setIsCollapsed(true);
                       }}
                       className="nav-item"
                       style={{ background: 'none', border: 'none', width: '100%', textAlign: 'left', cursor: 'pointer', padding: '8px 12px', fontSize: '0.85rem', color: 'var(--text-primary)' }}
@@ -153,7 +148,6 @@ const Sidebar = ({ onOpenRestockModal }: { onOpenRestockModal?: () => void }) =>
                       to={sub.path!}
                       className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
                       style={{ textDecoration: 'none', padding: '8px 12px', fontSize: '0.85rem' }}
-                      onClick={() => setIsCollapsed(true)}
                     >
                       {sub.label}
                     </NavLink>
@@ -171,17 +165,17 @@ const Sidebar = ({ onOpenRestockModal }: { onOpenRestockModal?: () => void }) =>
               ACCESOS RÁPIDOS
               <MoreHorizontal size={14} />
             </div>
-            <NavLink to="/suppliers" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} style={{ textDecoration: 'none' }} onClick={() => { setExpandedMenu(null); setIsCollapsed(true); }}>
+            <NavLink to="/suppliers" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} style={{ textDecoration: 'none' }}>
               <div style={{width:'8px',height:'8px',borderRadius:'50%',border:'2px solid var(--text-muted)', flexShrink: 0}}></div> 
               Proveedores 
               <span style={{marginLeft:'auto',fontSize:'0.75rem',color:'var(--text-muted)'}}>122</span>
             </NavLink>
-            <NavLink to="/customers" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} style={{ textDecoration: 'none' }} onClick={() => { setExpandedMenu(null); setIsCollapsed(true); }}>
+            <NavLink to="/customers" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} style={{ textDecoration: 'none' }}>
               <div style={{width:'8px',height:'8px',borderRadius:'50%',border:'2px solid var(--text-muted)', flexShrink: 0}}></div> 
               Clientes Frecuentes 
               <span style={{marginLeft:'auto',fontSize:'0.75rem',color:'var(--text-muted)'}}>89</span>
             </NavLink>
-            <NavLink to="/sales-history" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} style={{ textDecoration: 'none' }} onClick={() => { setExpandedMenu(null); setIsCollapsed(true); }}>
+            <NavLink to="/sales-history" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} style={{ textDecoration: 'none' }}>
               <div style={{width:'8px',height:'8px',borderRadius:'50%',border:'2px solid var(--text-muted)', flexShrink: 0}}></div> 
               Cortes de Caja 
               <span style={{marginLeft:'auto',fontSize:'0.75rem',color:'var(--text-muted)'}}>32</span>
@@ -193,7 +187,7 @@ const Sidebar = ({ onOpenRestockModal }: { onOpenRestockModal?: () => void }) =>
       {/* Footer */}
       <div style={{ marginTop: 'auto' }}>
 
-        <NavLink to="/settings" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} style={{ textDecoration: 'none', justifyContent: isCollapsed ? 'center' : 'flex-start' }} title={isCollapsed ? 'Configuración' : undefined} onClick={() => { setExpandedMenu(null); setIsCollapsed(true); }}>
+        <NavLink to="/settings" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} style={{ textDecoration: 'none', justifyContent: isCollapsed ? 'center' : 'flex-start' }} title={isCollapsed ? 'Configuración' : undefined}>
           <Settings size={18} style={{ flexShrink: 0 }} />
           {!isCollapsed && 'Configuración'}
         </NavLink>
@@ -204,7 +198,6 @@ const Sidebar = ({ onOpenRestockModal }: { onOpenRestockModal?: () => void }) =>
           className="nav-item" 
           style={{ textDecoration: 'none', justifyContent: isCollapsed ? 'center' : 'flex-start' }} 
           title={isCollapsed ? 'Soporte de WhatsApp' : undefined} 
-          onClick={() => { setExpandedMenu(null); setIsCollapsed(true); }}
         >
           <HelpCircle size={18} style={{ flexShrink: 0 }} />
           {!isCollapsed && 'Soporte'}
