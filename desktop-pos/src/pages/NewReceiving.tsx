@@ -3,9 +3,11 @@ import { ArrowLeft, Search, Building2, PackagePlus, FileText, Phone, User, Trash
 import { useNavigate } from 'react-router-dom';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { useAuth } from '../context/AuthContext';
 
 const NewReceiving = ({ inventory, setInventory, suppliers, showToast }: { inventory: any[], setInventory: (inv: any[]) => void, suppliers: any[], showToast?: (m: string, t?: 'success'|'error') => void }) => {
   const navigate = useNavigate();
+  const { userData } = useAuth();
   const [supplierSearch, setSupplierSearch] = useState('');
   const [selectedSupplier, setSelectedSupplier] = useState<any>(null);
   const [showSupplierDropdown, setShowSupplierDropdown] = useState(false);
@@ -94,9 +96,9 @@ const NewReceiving = ({ inventory, setInventory, suppliers, showToast }: { inven
     doc.setTextColor(255, 255, 255);
     doc.setFontSize(16);
     doc.setFont('helvetica', 'bold');
-    doc.text('SCHOPY POS', 36, 18);
+    doc.text(userData?.companyName || 'SCHOPY POS', 36, 18);
     
-    doc.setFontSize(12);
+    doc.setFontSize(10);
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(148, 163, 184); // slate-400
     doc.text('COMPROBANTE DE ENTRADA', 196, 18, { align: 'right' });
