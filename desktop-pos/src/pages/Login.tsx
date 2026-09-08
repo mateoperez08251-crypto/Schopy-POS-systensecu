@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
+import { Mail, Lock, Eye, EyeOff, LogIn, Store } from 'lucide-react';
 import './Login.css';
 
 import { auth } from '../firebase/config';
-import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
+import { signInWithEmailAndPassword } from 'firebase/auth';
 
 interface LoginProps {
   onLogin: () => void;
@@ -11,7 +12,7 @@ interface LoginProps {
 const Login: React.FC<LoginProps> = ({ onLogin }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -25,12 +26,10 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
       onLogin();
     } catch (err: any) {
       console.error(err);
-      if (err.code === 'auth/email-already-in-use') {
-        setError('El correo ya está en uso. Intenta iniciar sesión.');
-      } else if (err.code === 'auth/weak-password') {
-        setError('La contraseña debe tener al menos 6 caracteres.');
+      if (err.code === 'auth/invalid-credential' || err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password') {
+        setError('Credenciales incorrectas o el usuario no existe.');
       } else {
-        setError('Credenciales incorrectas o usuario no existe.');
+        setError('Ocurrió un error al intentar iniciar sesión.');
       }
     } finally {
       setLoading(false);
@@ -38,102 +37,83 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
   };
 
   return (
-    <div className="login-page-wrapper">
-      <form className="card" onSubmit={handleSubmit}>
-        <input className="blind-check" type="checkbox" id="blind-input" hidden defaultChecked />
-        
-        <div className="avatar">
-          <svg id="monkey" viewBox="0 0 100 100">
-            {/* Monkey Face Base */}
-            <circle cx="50" cy="50" r="40" fill="#8B5A2B" />
-            <circle cx="50" cy="65" r="25" fill="#D2B48C" />
-            <circle cx="35" cy="40" r="15" fill="#D2B48C" />
-            <circle cx="65" cy="40" r="15" fill="#D2B48C" />
-            
-            {/* Eyes */}
-            <ellipse className="monkey-eye-l" cx="35" cy="35" rx="5" ry="5" fill="black" />
-            <ellipse className="monkey-eye-r" cx="65" cy="35" rx="5" ry="5" fill="black" />
-            
-            {/* Nose */}
-            <circle className="monkey-eye-nose" cx="50" cy="55" r="3" fill="black" />
-          </svg>
-          <svg id="monkey-hands" viewBox="0 0 100 100">
-            {/* Hands */}
-            <circle cx="35" cy="35" r="20" fill="#8B5A2B" />
-            <circle cx="65" cy="35" r="20" fill="#8B5A2B" />
-            {/* Fingers (optional detail) */}
-            <rect x="25" y="20" width="4" height="15" rx="2" fill="#6A4420" />
-            <rect x="33" y="15" width="4" height="20" rx="2" fill="#6A4420" />
-            <rect x="41" y="20" width="4" height="15" rx="2" fill="#6A4420" />
-            
-            <rect x="55" y="20" width="4" height="15" rx="2" fill="#6A4420" />
-            <rect x="63" y="15" width="4" height="20" rx="2" fill="#6A4420" />
-            <rect x="71" y="20" width="4" height="15" rx="2" fill="#6A4420" />
-          </svg>
-        </div>
-
-        <div className="form">
-          <div className="title">Schopy(POS) Technology</div>
-          
-          <label className="label_input">Correo</label>
-          <input 
-            type="email" 
-            className="input" 
-            required 
-            value={email}
-            onChange={e => setEmail(e.target.value)}
-          />
-          
-          <label className="label_input">Contraseña</label>
-          <div className="password-wrapper">
-            <input 
-              type="text" 
-              className="input" 
-              id="password-input"
-              required 
-              value={password}
-              onChange={e => setPassword(e.target.value)}
-            />
-            <label htmlFor="blind-input" className="blind_input">
-              <span className="hide">Ocultar</span>
-              <span className="show">Mostrar</span>
-            </label>
-          </div>
-          
-          <div className="frg_pss" style={{ display: 'flex', justifyContent: 'center', margin: '1rem 0' }}>
-            <a href="#">¿Olvidaste tu contraseña?</a>
-          </div>
-          
-          {error && <div style={{ color: '#ef4444', fontSize: '0.85rem', marginTop: '8px', textAlign: 'center' }}>{error}</div>}
-          
-          <button type="submit" className="submit" disabled={loading}>
-            {loading ? 'Procesando...' : 'Entrar'}
-          </button>
-
-          <div style={{ marginTop: '2rem', textAlign: 'center', width: '100%' }}>
-            <span style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '1px' }}>
-              Síguenos en
-            </span>
-            <div className="social-buttons" style={{ marginTop: '0.75rem' }}>
-            <button type="button" className="social-btn ig" title="Instagram">
-              <svg viewBox="0 0 448 512" xmlns="http://www.w3.org/2000/svg">
-                <path d="M224.1 141c-63.6 0-114.9 51.3-114.9 114.9s51.3 114.9 114.9 114.9S339 319.5 339 255.9 287.7 141 224.1 141zm0 189.6c-41.1 0-74.7-33.5-74.7-74.7s33.5-74.7 74.7-74.7 74.7 33.5 74.7 74.7-33.6 74.7-74.7 74.7zm146.4-194.3c0 14.9-12 26.8-26.8 26.8-14.9 0-26.8-12-26.8-26.8s12-26.8 26.8-26.8 26.8 12 26.8 26.8zm76.1 27.2c-1.7-35.9-9.9-67.7-36.2-93.9-26.2-26.2-58-34.4-93.9-36.2-37-2.1-147.9-2.1-184.9 0-35.8 1.7-67.6 9.9-93.9 36.1s-34.4 58-36.2 93.9c-2.1 37-2.1 147.9 0 184.9 1.7 35.9 9.9 67.7 36.2 93.9s58 34.4 93.9 36.2c37 2.1 147.9 2.1 184.9 0 35.9-1.7 67.7-9.9 93.9-36.2 26.2-26.2 34.4-58 36.2-93.9 2.1-37 2.1-147.8 0-184.8zM398.8 388c-7.8 19.6-22.9 34.7-42.6 42.6-29.5 11.7-99.5 9-132.1 9s-102.7 2.6-132.1-9c-19.6-7.8-34.7-22.9-42.6-42.6-11.7-29.5-9-99.5-9-132.1s-2.6-102.7 9-132.1c7.8-19.6 22.9-34.7 42.6-42.6 29.5-11.7 99.5-9 132.1-9s102.7-2.6 132.1 9c19.6 7.8 34.7 22.9 42.6 42.6 11.7 29.5 9 99.5 9 132.1s2.7 102.7-9 132.1z" />
-              </svg>
-            </button>
-            <button type="button" className="social-btn wa" title="WhatsApp">
-              <svg viewBox="0 0 448 512" xmlns="http://www.w3.org/2000/svg">
-                <path d="M380.9 97.1C339 55.1 283.2 32 223.9 32c-122.4 0-222 99.6-222 222 0 39.1 10.2 77.3 29.6 111L0 480l117.7-30.9c32.4 17.7 68.9 27 106.1 27h.1c122.3 0 224.1-99.6 224.1-222 0-59.3-25.2-115-67.1-157zm-157 341.6c-33.2 0-65.7-8.9-94-25.7l-6.7-4-69.8 18.3L72 359.2l-4.4-7c-18.5-29.4-28.2-63.3-28.2-98.2 0-101.7 82.8-184.5 184.6-184.5 49.3 0 95.6 19.2 130.4 54.1 34.8 34.9 56.2 81.2 56.1 130.5 0 101.8-84.9 184.6-186.6 184.6zm101.2-138.2c-5.5-2.8-32.8-16.2-37.9-18-5.1-1.9-8.8-2.8-12.5 2.8-3.7 5.6-14.3 18-17.6 21.8-3.2 3.7-6.5 4.2-12 1.4-32.6-16.3-54-29.1-75.5-66-5.7-9.8 5.7-9.1 16.3-30.3 1.8-3.7.9-6.9-.5-9.7-1.4-2.8-12.5-30.1-17.1-41.2-4.5-10.8-9.1-9.3-12.5-9.5-3.2-.2-6.9-.2-10.6-.2-3.7 0-9.7 1.4-14.8 6.9-5.1 5.6-19.4 19-19.4 46.3 0 27.3 19.9 53.7 22.6 57.4 2.8 3.7 39.1 59.7 94.8 83.8 35.2 15.2 49 16.5 66.6 13.9 10.7-1.6 32.8-13.4 37.4-26.4 4.6-13 4.6-24.1 3.2-26.4-1.3-2.5-5-3.9-10.5-6.6z" />
-              </svg>
-            </button>
-            <button type="button" className="social-btn fb" title="Facebook">
-              <svg viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
-                <path d="M504 256C504 119 393 8 256 8S8 119 8 256c0 123.78 90.69 226.38 209.25 245V327.69h-63V256h63v-54.64c0-62.15 37-96.48 93.67-96.48 27.14 0 55.52 4.84 55.52 4.84v61h-31.28c-30.8 0-40.41 19.12-40.41 38.73V256h68.78l-11 71.69h-57.78V501C413.31 482.38 504 379.78 504 256z" />
-              </svg>
-            </button>
-          </div>
+    <div className="login-container">
+      <div className="login-split-layout">
+        {/* Lado Izquierdo: Visual */}
+        <div className="login-visual-side">
+          <div className="login-visual-overlay"></div>
+          <div className="login-visual-content">
+            <div className="brand-logo">
+              <img src="/app-icon.png" alt="Schopy POS Logo" style={{ width: '48px', height: '48px', objectFit: 'contain' }} />
+            </div>
+            <h1>Schopy POS</h1>
+            <p>El sistema de punto de venta inteligente y moderno para potenciar tu negocio.</p>
           </div>
         </div>
-      </form>
+
+        {/* Lado Derecho: Formulario */}
+        <div className="login-form-side">
+          <div className="login-form-wrapper">
+            <div className="form-header">
+              <h2>Bienvenido de nuevo</h2>
+              <p>Ingresa tus credenciales para acceder a tu cuenta</p>
+            </div>
+
+            <form onSubmit={handleSubmit} className="login-form">
+              <div className="input-group">
+                <label>Correo Electrónico</label>
+                <div className="input-icon-wrapper">
+                  <Mail className="input-icon" size={20} />
+                  <input 
+                    type="email" 
+                    placeholder="tucorreo@ejemplo.com"
+                    required 
+                    value={email}
+                    onChange={e => setEmail(e.target.value)}
+                  />
+                </div>
+              </div>
+
+              <div className="input-group">
+                <div className="password-header">
+                  <label>Contraseña</label>
+                  <a href="#" className="forgot-password">¿Olvidaste tu contraseña?</a>
+                </div>
+                <div className="input-icon-wrapper">
+                  <Lock className="input-icon" size={20} />
+                  <input 
+                    type={showPassword ? "text" : "password"} 
+                    placeholder="••••••••"
+                    required 
+                    value={password}
+                    onChange={e => setPassword(e.target.value)}
+                  />
+                  <button 
+                    type="button" 
+                    className="toggle-password"
+                    onClick={() => setShowPassword(!showPassword)}
+                  >
+                    {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                  </button>
+                </div>
+              </div>
+
+              {error && <div className="error-message">{error}</div>}
+
+              <button type="submit" className="login-submit-btn" disabled={loading}>
+                {loading ? (
+                  <span className="loading-spinner"></span>
+                ) : (
+                  <>
+                    <span>Iniciar Sesión</span>
+                    <LogIn size={20} />
+                  </>
+                )}
+              </button>
+            </form>
+          </div>
+        </div>
+      </div>
     </div>
   );
 };

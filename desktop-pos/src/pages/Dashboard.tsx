@@ -27,7 +27,7 @@ const Dashboard = () => {
     setTimeout(() => setToast(null), 3000);
   };
 
-  const handleExport = () => {
+  const handleExport = async () => {
     showToast("Generando reporte PDF profesional...");
 
     const now = new Date();
@@ -38,20 +38,33 @@ const Dashboard = () => {
     const pageWidth = doc.internal.pageSize.width;
     const pageHeight = doc.internal.pageSize.height;
     
+    // Cargar logo
+    const img = new Image();
+    img.src = '/app-icon.png';
+    await new Promise((resolve) => {
+      img.onload = resolve;
+      img.onerror = resolve;
+    });
+    
     // --- FUNCIÓN DE CABECERA Y PIE DE PÁGINA GLOBAL ---
     const addHeaderFooter = (data: any) => {
       // Cabecera en todas las páginas
-      doc.setFillColor(30, 41, 59); // Slate-800
-      doc.rect(0, 0, pageWidth, 25, 'F');
+      doc.setFillColor(15, 23, 42); // slate-900 (más moderno)
+      doc.rect(0, 0, pageWidth, 28, 'F');
+      
+      try {
+        doc.addImage(img, 'PNG', 14, 5, 18, 18);
+      } catch (e) {}
       
       doc.setTextColor(255, 255, 255);
       doc.setFontSize(16);
       doc.setFont('helvetica', 'bold');
-      doc.text('SCHOPY POS SYSTEM', 14, 16);
+      doc.text('SCHOPY POS', 36, 17);
       
       doc.setFontSize(10);
       doc.setFont('helvetica', 'normal');
-      doc.text('REPORTE EJECUTIVO DE OPERACIONES', pageWidth - 14, 16, { align: 'right' });
+      doc.setTextColor(148, 163, 184); // slate-400
+      doc.text('REPORTE EJECUTIVO', pageWidth - 14, 17, { align: 'right' });
 
       // Pie de página en todas las páginas
       doc.setFillColor(248, 250, 252); // Slate-50

@@ -4,14 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { LayoutDashboard, Search, Bell, Mail, Share2, ShieldAlert, CheckCircle2, AlertTriangle, BellOff, ShoppingCart, FileText, History, Package, X } from 'lucide-react';
 
 const initialNotifications = [
-  {
-    id: 1,
-    type: 'danger',
-    title: 'Alerta IA: Omisión de escaneo',
-    desc: 'Caja Principal - Producto pasado sin registro al sistema.',
-    time: 'Hace 2 min',
-    icon: ShieldAlert
-  },
+
   {
     id: 2,
     type: 'warning',
@@ -69,23 +62,7 @@ const TopNav = ({ title = "" }: { title?: string }) => {
     } catch(e) {}
   };
 
-  useEffect(() => {
-    if (hasPlayedNotificationDing) return;
 
-    // Simulate a new notification arriving after 1.5 seconds
-    const timer = setTimeout(() => {
-      hasPlayedNotificationDing = true;
-      playDing();
-      setShowPopupNotification(true);
-      
-      // Hide after 5 seconds
-      setTimeout(() => {
-        setShowPopupNotification(false);
-      }, 5000);
-    }, 1500);
-    
-    return () => clearTimeout(timer);
-  }, []);
 
   useEffect(() => {
     if (daysRemaining !== null && daysRemaining <= 3 && daysRemaining >= -3) {
