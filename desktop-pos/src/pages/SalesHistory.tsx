@@ -28,7 +28,18 @@ const SalesHistory: React.FC<SalesHistoryProps> = ({ salesHistory }) => {
     const clientName = sale.client || 'Público en General';
     const matchesSearch = sale.id.toLowerCase().includes(searchTerm.toLowerCase()) || 
                           clientName.toLowerCase().includes(searchTerm.toLowerCase());
-    return matchesSearch;
+                          
+    let matchesDate = true;
+    if (dateFrom || dateTo) {
+      // Intentar obtener la fecha en formato YYYY-MM-DD
+      const sDate = sale.date || (sale.createdAt ? sale.createdAt.split('T')[0] : '');
+      if (sDate) {
+        if (dateFrom && sDate < dateFrom) matchesDate = false;
+        if (dateTo && sDate > dateTo) matchesDate = false;
+      }
+    }
+
+    return matchesSearch && matchesDate;
   });
 
   const handleSelect = (id: string) => {

@@ -451,6 +451,29 @@ const Dashboard = () => {
                 ))}
               </div>
             </div>
+
+            {/* Mecánico del Mes */}
+            {data.topMechanic && (
+              <div style={{ marginTop: '20px', borderTop: '1px solid var(--border-light)', paddingTop: '16px' }}>
+                <div className="flex-between" style={{ marginBottom: '12px' }}>
+                  <h4 style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-secondary)' }}>Mecánico del Mes</h4>
+                  <div style={{ padding: '2px 8px', background: 'rgba(245, 158, 11, 0.1)', color: '#F59E0B', borderRadius: '12px', fontSize: '0.7rem', fontWeight: 700 }}>Destacado</div>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', background: 'var(--bg-app)', padding: '12px', borderRadius: '8px' }}>
+                  <div style={{ width: '40px', height: '40px', background: 'var(--accent-primary)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: 700 }}>
+                    {data.topMechanic.name ? data.topMechanic.name.charAt(0).toUpperCase() : 'N'}
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: '0.9rem', fontWeight: 700 }}>{data.topMechanic.name}</div>
+                    <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{data.topMechanic.salesCount} servicios</div>
+                  </div>
+                  <div style={{ textAlign: 'right' }}>
+                    <div style={{ fontSize: '0.95rem', fontWeight: 800, color: 'var(--accent-success)' }}>${data.topMechanic.totalSales.toLocaleString()}</div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>en ventas</div>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
 

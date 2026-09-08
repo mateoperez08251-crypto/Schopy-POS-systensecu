@@ -3,7 +3,7 @@ import { NavLink } from 'react-router-dom';
 import { 
   LayoutDashboard, ShoppingBag, Package, Calendar as CalendarIcon, 
   BarChart2, ShieldAlert, MoreHorizontal, Settings, HelpCircle, 
-  ArrowUpRight, LogOut, Menu, X, Truck, Users, Wallet
+  ArrowUpRight, LogOut, Menu, X, Truck, Users, Wallet, Wrench, Cloud
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
@@ -35,7 +35,9 @@ const Sidebar = () => {
       ]
     },
     { icon: Users, label: 'Clientes', path: '/customers' },
+    { icon: Wrench, label: 'Mecánicos (Dashboard)', path: '/mechanics-dashboard' },
     { icon: ShieldAlert, label: 'Personal (Cajeros)', path: '/staff' },
+    { icon: Cloud, label: 'Respaldo a Nube', path: '/backup' },
     { icon: ShieldAlert, label: 'Auditoría IA', path: '/audit' }
   ];
 

@@ -4,6 +4,8 @@ import { useNavigate } from 'react-router-dom';
 import { Search, ShoppingCart, Trash2, Plus, Minus, CreditCard, Banknote, PauseCircle, PlayCircle, Printer, MessageCircle, Tag, Package, X, Calendar, MapPin, StickyNote, FileText, History } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { logAuditEvent } from '../firebase/auditService';
+import { subscribeToMechanics } from '../firebase/localMechanicsService';
+import { updateInventoryItem } from '../firebase/inventoryService';
 
 const categories = ['Todos', 'Bebidas', 'Snacks', 'Abarrotes', 'Limpieza', 'Electrónica'];
 
@@ -45,6 +47,27 @@ const POSInterface: React.FC<POSInterfaceProps> = ({ salesHistory, setSalesHisto
   const [saleDate, setSaleDate] = useState(() => new Date().toISOString().split('T')[0]);
   const [saleNote, setSaleNote] = useState('');
   const [voucherDocument, setVoucherDocument] = useState('');
+
+  const [mechanics, setMechanics] = useState<any[]>([]);
+  const [selectedMechanic, setSelectedMechanic] = useState<string>('');
+  const [priceLevel, setPriceLevel] = useState<'normal' | 'frequent' | 'wholesale'>('normal');
+
+  useEffect(() => {
+    return subscribeToMechanics((data) => setMechanics(data));
+  }, []);
+
+  const getPrice = (product: any, level: string) => {
+    if (level === 'frequent' && product.priceFrequent) return parseFloat(product.priceFrequent);
+    if (level === 'wholesale' && product.priceWholesale) return parseFloat(product.priceWholesale);
+    return parseFloat(product.price) || 0;
+  };
+
+  useEffect(() => {
+    setCart(prev => prev.map(item => ({
+      ...item,
+      price: getPrice(item, priceLevel)
+    })));
+  }, [priceLevel]);
 
   const searchInputRef = useRef<HTMLInputElement>(null);
 
@@ -92,10 +115,13 @@ const POSInterface: React.FC<POSInterfaceProps> = ({ salesHistory, setSalesHisto
   }, [cart, isCheckoutOpen, isPaymentModalOpen, modifierItem, checkoutStep, paymentMethod, amountReceived, total]);
 
   const addToCart = (product: any) => {
+    if (product.stock <= 5) {
+      alert(`¡Aviso! Quedan pocas unidades de ${product.name} (Stock: ${product.stock})`);
+    }
     setCart(prev => {
       const exists = prev.find(item => item.id === product.id);
       if (exists) return prev.map(item => item.id === product.id ? { ...item, quantity: item.quantity + 1 } : item);
-      return [...prev, { ...product, quantity: 1, discount: 0, note: '' }];
+      return [...prev, { ...product, price: getPrice(product, priceLevel), quantity: 1, discount: 0, note: '' }];
     });
   };
 
@@ -152,10 +178,19 @@ const POSInterface: React.FC<POSInterfaceProps> = ({ salesHistory, setSalesHisto
         note: saleNote,
         paymentMethod: method,
         voucherDocument: isVoucherMode ? voucherDocument : undefined,
+        mechanicId: selectedMechanic || null,
+        priceLevel,
         date: saleDate,
         time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
       };
       setSalesHistory([newSale, ...salesHistory]);
+
+      cart.forEach(item => {
+        const invItem = inventory.find(i => i.id === item.id);
+        if (invItem) {
+          updateInventoryItem(invItem.id, { stock: Math.max(0, (invItem.stock || 0) - item.quantity) });
+        }
+      });
 
       if (currentUser && userData?.companyId) {
         logAuditEvent(
@@ -367,6 +402,24 @@ const POSInterface: React.FC<POSInterfaceProps> = ({ salesHistory, setSalesHisto
                   <Calendar size={14} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
                   <input type="date" value={saleDate} onChange={e => setSaleDate(e.target.value)} style={{ width: '100%', padding: '10px 10px 10px 36px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-medium)', background: 'var(--bg-app)', color: 'var(--text-primary)', outline: 'none' }} />
                 </div>
+              </div>
+            </div>
+            
+            <div style={{ display: 'flex', gap: '16px' }}>
+              <div style={{ flex: 1 }}>
+                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '4px' }}>Nivel de Precio</label>
+                <select value={priceLevel} onChange={e => setPriceLevel(e.target.value as any)} style={{ width: '100%', padding: '10px 12px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-medium)', background: 'var(--bg-app)', color: 'var(--text-primary)', outline: 'none' }}>
+                  <option value="normal">Público General (Normal)</option>
+                  <option value="frequent">Cliente Frecuente</option>
+                  <option value="wholesale">Mayorista</option>
+                </select>
+              </div>
+              <div style={{ flex: 1 }}>
+                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '4px' }}>Mecánico (Opcional)</label>
+                <select value={selectedMechanic} onChange={e => setSelectedMechanic(e.target.value)} style={{ width: '100%', padding: '10px 12px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-medium)', background: 'var(--bg-app)', color: 'var(--text-primary)', outline: 'none' }}>
+                  <option value="">Ninguno</option>
+                  {mechanics.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
+                </select>
               </div>
             </div>
             <div style={{ display: 'flex', gap: '16px' }}>

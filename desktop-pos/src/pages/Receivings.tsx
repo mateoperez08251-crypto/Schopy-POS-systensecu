@@ -1,36 +1,42 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Search, Plus, Filter, PackagePlus, Calendar, ArrowRight, User } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-const INITIAL_RECEIVINGS = [
-  { id: 'RCV-1001', date: '2026-07-25T09:30:00', supplier: 'Distribuidora Corripio', items: 4, totalCost: 12500, user: 'Admin' },
-  { id: 'RCV-1002', date: '2026-07-24T14:15:00', supplier: 'Cervecería Nacional', items: 2, totalCost: 8300, user: 'Caja 1' },
-  { id: 'RCV-1003', date: '2026-07-20T10:00:00', supplier: 'Mercasid', items: 15, totalCost: 45200, user: 'Admin' },
-];
+import { subscribeToReceivings, Receiving } from '../firebase/localReceivingsService';
 
 const Receivings = ({ suppliers }: { suppliers?: any[] }) => {
   const navigate = useNavigate();
-  const [receivings, setReceivings] = useState(INITIAL_RECEIVINGS);
+  const [receivings, setReceivings] = useState<Receiving[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
 
+  useEffect(() => {
+    const unsub = subscribeToReceivings((data) => {
+      setReceivings(data.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
+    });
+    return () => unsub();
+  }, []);
+
+  // La creación se hace desde NewReceiving.tsx
   const handleAddReceiving = (data: any) => {
-    const nextId = `RCV-${1000 + receivings.length + 1}`;
-    
-    const newReceiving = {
-      id: nextId,
-      date: new Date().toISOString(),
-      supplier: data.supplier || 'Proveedor Desconocido',
-      items: data.items?.length || 0,
-      totalCost: data.totalCost || 0,
-      user: 'Admin'
-    };
-
-    setReceivings([newReceiving, ...receivings]);
+    // Deprecated for direct add, use NewReceiving
   };
 
-  const filteredReceivings = receivings.filter(r => 
-    r.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    r.supplier.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredReceivings = receivings.filter(r => {
+    const matchesSearch = r.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                          r.supplier.toLowerCase().includes(searchTerm.toLowerCase());
+                          
+    let matchesDate = true;
+    if (dateFrom || dateTo) {
+      const rDate = r.date ? r.date.split('T')[0] : '';
+      if (rDate) {
+        if (dateFrom && rDate < dateFrom) matchesDate = false;
+        if (dateTo && rDate > dateTo) matchesDate = false;
+      }
+    }
+    
+    return matchesSearch && matchesDate;
+  });
 
   return (
     <div style={{ padding: '24px', maxWidth: '1200px', margin: '0 auto', width: '100%' }}>
@@ -62,9 +68,28 @@ const Receivings = ({ suppliers }: { suppliers?: any[] }) => {
             style={{ width: '100%', paddingLeft: '44px' }}
           />
         </div>
-        <button className="btn btn-outline" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <Calendar size={18} /> Filtrar Fecha
-        </button>
+        <div style={{ display: 'flex', gap: '12px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Desde:</span>
+            <input 
+              type="date" 
+              value={dateFrom}
+              onChange={(e) => setDateFrom(e.target.value)}
+              className="input"
+              style={{ padding: '8px 12px', width: '140px' }}
+            />
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Hasta:</span>
+            <input 
+              type="date" 
+              value={dateTo}
+              onChange={(e) => setDateTo(e.target.value)}
+              className="input"
+              style={{ padding: '8px 12px', width: '140px' }}
+            />
+          </div>
+        </div>
       </div>
 
       <div className="card" style={{ overflow: 'hidden' }}>
@@ -109,6 +134,13 @@ const Receivings = ({ suppliers }: { suppliers?: any[] }) => {
                 </td>
               </tr>
             ))}
+            {filteredReceivings.length === 0 && (
+              <tr>
+                <td colSpan={7} style={{ padding: '32px', textAlign: 'center', color: 'var(--text-muted)' }}>
+                  No hay recepciones registradas.
+                </td>
+              </tr>
+            )}
           </tbody>
         </table>
       </div>

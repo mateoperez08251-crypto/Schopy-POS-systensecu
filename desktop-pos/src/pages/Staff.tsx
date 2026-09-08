@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Plus, MoreVertical, Shield, User, Mail, Calendar, Key } from 'lucide-react';
+import { Search, Plus, Shield, User, Key, Trash2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { subscribeToStaff, createCashier, deleteCashier } from '../firebase/staffService';
+import { subscribeToStaffLocal, addStaffLocal, deleteStaffLocal } from '../firebase/localStaffService';
 import { createPortal } from 'react-dom';
 
 const StaffFormModal = ({ isOpen, onClose, onSubmit }: { isOpen: boolean, onClose: () => void, onSubmit: (data: any) => Promise<void> }) => {
-  const [formData, setFormData] = useState({ name: '', email: '', uid: '' });
+  const [formData, setFormData] = useState({ name: '', pin: '', role: 'cashier' });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -13,22 +13,18 @@ const StaffFormModal = ({ isOpen, onClose, onSubmit }: { isOpen: boolean, onClos
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (formData.uid.length < 5) {
-      setError('El UID debe ser válido');
+    if (formData.pin.length < 4) {
+      setError('El PIN debe tener al menos 4 dígitos');
       return;
     }
     setLoading(true);
     setError('');
     try {
       await onSubmit(formData);
-      setFormData({ name: '', email: '', uid: '' });
+      setFormData({ name: '', pin: '', role: 'cashier' });
       onClose();
     } catch (err: any) {
-      if (err.code === 'auth/email-already-in-use') {
-        setError('Este correo electrónico ya está en uso');
-      } else {
-        setError(`Ocurrió un error: ${err.message || 'Desconocido'}`);
-      }
+      setError(`Error: ${err.message || 'Desconocido'}`);
     } finally {
       setLoading(false);
     }
@@ -38,7 +34,7 @@ const StaffFormModal = ({ isOpen, onClose, onSubmit }: { isOpen: boolean, onClos
     <div className="checkout-modal-overlay" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 99999, padding: '24px' }} onClick={onClose}>
       <div className="card" style={{ width: '100%', maxWidth: '400px', display: 'flex', flexDirection: 'column', padding: 0, overflow: 'hidden' }} onClick={e => e.stopPropagation()}>
         <div style={{ padding: '20px 24px', borderBottom: '1px solid var(--border-medium)', background: 'var(--bg-app)' }}>
-          <h2 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 800 }}>Nuevo Cajero</h2>
+          <h2 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 800 }}>Nuevo Usuario (Local)</h2>
         </div>
         
         <form onSubmit={handleSubmit} style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
@@ -58,19 +54,21 @@ const StaffFormModal = ({ isOpen, onClose, onSubmit }: { isOpen: boolean, onClos
           </div>
 
           <div style={{ display: 'grid', gap: '8px' }}>
-            <label style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Correo Electrónico</label>
-            <input 
-              type="email" required value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})}
-              placeholder="juan@tienda.com"
-              style={{ background: 'var(--bg-app)', border: '1px solid var(--border-medium)', color: 'var(--text-primary)', padding: '10px 12px', borderRadius: 'var(--radius-md)', outline: 'none' }} 
-            />
+            <label style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Rol</label>
+            <select
+              value={formData.role} onChange={e => setFormData({...formData, role: e.target.value})}
+              style={{ background: 'var(--bg-app)', border: '1px solid var(--border-medium)', color: 'var(--text-primary)', padding: '10px 12px', borderRadius: 'var(--radius-md)', outline: 'none' }}
+            >
+              <option value="cashier">Cajero</option>
+              <option value="admin">Administrador</option>
+            </select>
           </div>
 
           <div style={{ display: 'grid', gap: '8px' }}>
-            <label style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)' }}>ID de Autenticación (UID de Firebase)</label>
+            <label style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)' }}>PIN de Acceso</label>
             <input 
-              type="text" required value={formData.uid} onChange={e => setFormData({...formData, uid: e.target.value})}
-              placeholder="Ej. Yk3j8L... (Copiar desde Firebase Auth)"
+              type="text" required value={formData.pin} onChange={e => setFormData({...formData, pin: e.target.value.replace(/\D/g, '').slice(0, 6)})}
+              placeholder="4 a 6 dígitos numéricos"
               style={{ background: 'var(--bg-app)', border: '1px solid var(--border-medium)', color: 'var(--text-primary)', padding: '10px 12px', borderRadius: 'var(--radius-md)', outline: 'none' }} 
             />
           </div>
@@ -78,7 +76,7 @@ const StaffFormModal = ({ isOpen, onClose, onSubmit }: { isOpen: boolean, onClos
           <div style={{ marginTop: '8px', display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
             <button type="button" className="btn btn-outline" onClick={onClose} disabled={loading}>Cancelar</button>
             <button type="submit" className="btn btn-primary" disabled={loading}>
-              {loading ? 'Creando...' : 'Crear Cajero'}
+              {loading ? 'Guardando...' : 'Guardar Usuario'}
             </button>
           </div>
         </form>
@@ -96,45 +94,34 @@ const Staff = ({ showToast }: { showToast?: (m: string, t?: 'success'|'error'|'i
   const [staffList, setStaffList] = useState<any[]>([]);
 
   useEffect(() => {
-    if (userData?.companyId) {
-      const unsub = subscribeToStaff(userData.companyId, (items) => {
-        setStaffList(items);
-      }, (err) => {
-        if (showToast) showToast('Error al cargar personal. Verifica las reglas de Firestore.', 'error');
-      });
-      return () => unsub();
-    }
-  }, [userData]);
+    const unsub = subscribeToStaffLocal((items) => {
+      setStaffList(items);
+    });
+    return () => unsub();
+  }, []);
 
-  const handleAddCashier = async (data: any) => {
-    // Si por alguna razón userData.companyId sigue sin llegar, forzamos el de por defecto
-    const companyId = userData?.companyId || 'tienda_01';
-    
+  const handleAddStaff = async (data: any) => {
     try {
-      await createCashier(companyId, data.name, data.email, data.uid);
-      if (showToast) showToast('Cajero registrado exitosamente', 'success');
+      await addStaffLocal(data);
+      if (showToast) showToast('Usuario registrado exitosamente', 'success');
     } catch (error: any) {
-      console.error(error);
-      if (showToast) showToast(`Error: ${error.message || 'No se pudo crear'}`, 'error');
-      throw error; // Re-throw to be caught by the modal
+      throw error; // Para que el modal lo muestre
     }
   };
 
-  const handleDeleteCashier = async (uid: string) => {
-    if (window.confirm('¿Estás seguro de que deseas eliminar este cajero? Esto le revocará el acceso al sistema.')) {
+  const handleDeleteStaff = async (id: string, name: string) => {
+    if (window.confirm(`¿Eliminar al usuario ${name}?`)) {
       try {
-        await deleteCashier(uid);
-        if (showToast) showToast('Cajero eliminado del sistema', 'info');
+        await deleteStaffLocal(id);
+        if (showToast) showToast('Usuario eliminado', 'info');
       } catch (error: any) {
-        console.error(error);
         if (showToast) showToast(`Error al eliminar: ${error.message}`, 'error');
       }
     }
   };
 
   const filteredStaff = staffList.filter(s => 
-    s.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    s.email?.toLowerCase().includes(searchTerm.toLowerCase())
+    s.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   return (
@@ -142,17 +129,19 @@ const Staff = ({ showToast }: { showToast?: (m: string, t?: 'success'|'error'|'i
       <div className="flex-between" style={{ marginBottom: '24px' }}>
         <div>
           <h1 style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <Shield size={28} color="var(--accent-primary)" /> Personal y Cajeros
+            <Shield size={28} color="var(--accent-primary)" /> Personal (Local)
           </h1>
-          <p style={{ color: 'var(--text-secondary)', marginTop: '4px' }}>Gestiona los accesos y cajeros de tu empresa</p>
+          <p style={{ color: 'var(--text-secondary)', marginTop: '4px' }}>Gestiona los cajeros y administradores locales</p>
         </div>
-        <button 
-          className="btn btn-primary" 
-          style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
-          onClick={() => setIsModalOpen(true)}
-        >
-          <Plus size={18} /> Nuevo Cajero
-        </button>
+        {userData?.role === 'admin' && (
+          <button 
+            className="btn btn-primary" 
+            style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
+            onClick={() => setIsModalOpen(true)}
+          >
+            <Plus size={18} /> Nuevo Usuario
+          </button>
+        )}
       </div>
 
       <div style={{ marginBottom: '24px', display: 'flex', gap: '16px', alignItems: 'center' }}>
@@ -165,7 +154,7 @@ const Staff = ({ showToast }: { showToast?: (m: string, t?: 'success'|'error'|'i
           </div>
           <input 
             type="text" 
-            placeholder="Buscar por nombre o correo..." 
+            placeholder="Buscar por nombre..." 
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             style={{ 
@@ -200,37 +189,20 @@ const Staff = ({ showToast }: { showToast?: (m: string, t?: 'success'|'error'|'i
                       {staff.role === 'admin' ? 'Administrador' : 'Cajero'}
                     </span>
                   </div>
-                  {userData?.role === 'admin' && staff.role !== 'admin' && (
+                  {userData?.role === 'admin' && staff.id !== userData.id && (
                     <button 
-                      onClick={() => handleDeleteCashier(staff.id)}
+                      onClick={() => handleDeleteStaff(staff.id, staff.name)}
                       style={{ 
                         background: 'none', border: 'none', color: 'var(--accent-danger)', 
                         cursor: 'pointer', padding: '8px', borderRadius: '8px',
                         display: 'flex', alignItems: 'center', justifyContent: 'center'
                       }}
-                      title="Eliminar Cajero"
+                      title="Eliminar Usuario"
                     >
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M3 6h18"></path><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path>
-                      </svg>
+                      <Trash2 size={18} />
                     </button>
                   )}
                 </div>
-              </div>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
-                {staff.email && (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <div style={{ width: '20px' }}><Mail size={14} /></div>
-                    <span>{staff.email}</span>
-                  </div>
-                )}
-                {staff.createdAt && !isNaN(new Date(staff.createdAt).getTime()) && (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <div style={{ width: '20px' }}><Calendar size={14} /></div>
-                    <span>Creado el {new Date(staff.createdAt).toLocaleDateString('es-DO')}</span>
-                  </div>
-                )}
               </div>
             </div>
           ))
@@ -240,7 +212,7 @@ const Staff = ({ showToast }: { showToast?: (m: string, t?: 'success'|'error'|'i
       <StaffFormModal 
         isOpen={isModalOpen} 
         onClose={() => setIsModalOpen(false)} 
-        onSubmit={handleAddCashier} 
+        onSubmit={handleAddStaff} 
       />
     </div>
   );

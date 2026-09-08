@@ -15,7 +15,7 @@ import VoucherPOS from './pages/VoucherPOS';
 import Inventory from './pages/Inventory';
 import Audit from './pages/Audit';
 import SalesHistory from './pages/SalesHistory';
-import Login from './pages/Login';
+import LocalLogin from './pages/LocalLogin';
 import Suppliers from './pages/Suppliers';
 import Receivings from './pages/Receivings';
 import NewReceiving from './pages/NewReceiving';
@@ -23,7 +23,9 @@ import Customers from './pages/Customers';
 import Staff from './pages/Staff';
 import Setup from './pages/Setup';
 import Expired from './pages/Expired';
+import BackupScreen from './pages/BackupScreen';
 import Settings from './pages/Settings';
+import MechanicDashboard from './pages/MechanicDashboard';
 import Help from './pages/Help';
 // Pantalla de Cierre de Caja
 import CashRegister from './pages/CashRegister';
@@ -39,25 +41,22 @@ function App() {
   const [customers, setCustomers] = useState<any[]>([]);
   const [toast, setToast] = useState<{message: string, type: 'success' | 'error' | 'info'} | null>(null);
 
-  const { currentUser, userData, needsSetup, isSubscriptionExpired } = useAuth();
+  const { currentUser, userData } = useAuth();
 
   React.useEffect(() => {
-    if (userData?.companyId) {
-      const unsubInventory = subscribeToInventory(userData.companyId, (items) => {
-        setInventory(items);
-      });
-      const unsubCustomers = subscribeToCustomers(userData.companyId, (items) => {
-        setCustomers(items);
-      });
-      return () => {
-        unsubInventory();
-        unsubCustomers();
-      };
-    } else {
-      setInventory([]);
-      setCustomers([]);
-    }
-  }, [userData]);
+    // We can use a dummy companyId for local storage compatibility
+    const dummyCompanyId = 'local';
+    const unsubInventory = subscribeToInventory(dummyCompanyId, (items) => {
+      setInventory(items);
+    });
+    const unsubCustomers = subscribeToCustomers(dummyCompanyId, (items) => {
+      setCustomers(items);
+    });
+    return () => {
+      unsubInventory();
+      unsubCustomers();
+    };
+  }, []);
 
   const showToast = (message: string, type: 'success' | 'error' | 'info' = 'success') => {
     setToast({ message, type });
@@ -65,27 +64,7 @@ function App() {
   };
 
   if (!currentUser) {
-    return <Login onLogin={() => {}} />;
-  }
-
-  if (needsSetup) {
-    return (
-      <Router>
-        <Routes>
-          <Route path="*" element={<Setup />} />
-        </Routes>
-      </Router>
-    );
-  }
-
-  if (isSubscriptionExpired) {
-    return (
-      <Router>
-        <Routes>
-          <Route path="*" element={<Expired />} />
-        </Routes>
-      </Router>
-    );
+    return <LocalLogin />;
   }
 
   return (
@@ -105,9 +84,11 @@ function App() {
             <Route path="/suppliers" element={<Suppliers suppliers={suppliers} setSuppliers={setSuppliers} showToast={showToast} />} />
             <Route path="/customers" element={<Customers customers={customers} setCustomers={setCustomers} showToast={showToast} />} />
             <Route path="/staff" element={<Staff showToast={showToast} />} />
+            <Route path="/mechanics-dashboard" element={<MechanicDashboard />} />
             <Route path="/receivings/new" element={<NewReceiving inventory={inventory} setInventory={setInventory} suppliers={suppliers} showToast={showToast} />} />
             <Route path="/receivings" element={<Receivings suppliers={suppliers} />} />
             <Route path="/audit" element={<Audit />} />
+            <Route path="/backup" element={<BackupScreen />} />
             <Route path="/settings" element={<Settings />} />
             <Route path="/help" element={<Help />} />
             <Route path="*" element={<div style={{padding: '40px', flex:1}}><h2>Página en construcción</h2></div>} />

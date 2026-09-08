@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { useAuth } from '../context/AuthContext';
+import { addReceivingLocal } from '../firebase/localReceivingsService';
 
 const NewReceiving = ({ inventory, setInventory, suppliers, showToast }: { inventory: any[], setInventory: (inv: any[]) => void, suppliers: any[], showToast?: (m: string, t?: 'success'|'error') => void }) => {
   const navigate = useNavigate();
@@ -73,6 +74,15 @@ const NewReceiving = ({ inventory, setInventory, suppliers, showToast }: { inven
       return invProduct;
     });
     setInventory(updatedInventory);
+
+    // Guardar la recepción localmente
+    addReceivingLocal({
+      date: new Date().toISOString(),
+      supplier: selectedSupplier.name,
+      items: items.length,
+      totalCost: totalCost,
+      user: userData?.name || 'Admin'
+    });
 
     // Generar PDF
     const doc = new jsPDF();
