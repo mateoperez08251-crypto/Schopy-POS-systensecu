@@ -3,7 +3,7 @@ import { useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { LayoutDashboard, Search, Bell, Mail, Share2, ShieldAlert, CheckCircle2, AlertTriangle, BellOff, ShoppingCart, FileText, History, Package, X, RotateCcw, Trash2 } from 'lucide-react';
 import { subscribeToInventory } from '../firebase/inventoryService';
-import { subscribeToReturns, deleteReturn } from '../firebase/returnsService';
+import { subscribeToReturns, deleteReturn, addReturn } from '../firebase/returnsService';
 
 const initialNotifications: any[] = [];
 
@@ -21,6 +21,7 @@ const TopNav = ({ title = "" }: { title?: string }) => {
   const [returnSearchTerm, setReturnSearchTerm] = useState('');
   const [selectedReturnProduct, setSelectedReturnProduct] = useState<any | null>(null);
   const [newReturnNote, setNewReturnNote] = useState('');
+  const [returnSupplier, setReturnSupplier] = useState('');
   const [showPopupNotification, setShowPopupNotification] = useState(false);
   const [showSubscriptionWarning, setShowSubscriptionWarning] = useState(false);
   const [notifications, setNotifications] = useState<any[]>([]);
@@ -357,18 +358,39 @@ const TopNav = ({ title = "" }: { title?: string }) => {
                           style={{ width: '100%', minHeight: '60px', padding: '8px 12px', borderRadius: '6px', border: '1px solid var(--border-medium)', background: 'var(--bg-app)', color: 'var(--text-primary)', resize: 'vertical', outline: 'none' }}
                         />
                       </div>
+                      <div style={{ marginTop: '12px' }}>
+                        <label style={{ fontSize: '0.8rem', fontWeight: 600, marginBottom: '4px', display: 'block' }}>Suplidor Encargado (Opcional):</label>
+                        <input 
+                          type="text"
+                          value={returnSupplier}
+                          onChange={(e) => setReturnSupplier(e.target.value)}
+                          placeholder="Ej: Proveedor XYZ"
+                          style={{ width: '100%', padding: '8px 12px', borderRadius: '6px', border: '1px solid var(--border-medium)', background: 'var(--bg-app)', color: 'var(--text-primary)', outline: 'none' }}
+                        />
+                      </div>
 
-                      <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
+                      <div style={{ display: 'flex', gap: '8px', marginTop: '12px' }}>
                         <button onClick={() => setIsAddingReturn(false)} className="btn btn-outline" style={{ flex: 1, padding: '6px' }}>Cancelar</button>
                         <button 
-                          onClick={() => {
-                            if (!selectedReturnProduct || !newReturnNote.trim()) return;
-                            // Add logic to save return to Firebase here if needed
-                            setIsAddingReturn(false);
+                          onClick={async () => {
+                            if (!selectedReturnProduct || !newReturnNote.trim() || !companyId) return;
+                            try {
+                              await addReturn(companyId, {
+                                productId: selectedReturnProduct.id,
+                                productName: selectedReturnProduct.name,
+                                supplier: returnSupplier.trim() || selectedReturnProduct.supplier || 'No especificado',
+                                note: newReturnNote
+                              });
+                              setIsAddingReturn(false);
+                              setNewReturnNote('');
+                              setReturnSupplier('');
+                              setSelectedReturnProduct(null);
+                            } catch (e) {
+                              console.error("Error al guardar recordatorio:", e);
+                            }
                           }} 
                           className="btn btn-primary" 
                           style={{ flex: 1, padding: '6px' }}
-                          disabled={!selectedReturnProduct || !newReturnNote.trim()}
                         >
                           Guardar
                         </button>
