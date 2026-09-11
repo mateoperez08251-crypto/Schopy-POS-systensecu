@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { CloudUpload, Download, ShieldCheck, AlertTriangle, LogIn, X } from 'lucide-react';
+import { CloudUpload, Download, ShieldCheck, AlertTriangle, X } from 'lucide-react';
 import { doc, setDoc, getDoc } from 'firebase/firestore';
 import { signInWithEmailAndPassword, onAuthStateChanged } from 'firebase/auth';
 import { db, auth } from '../firebase/config';
@@ -25,6 +25,7 @@ const FirebaseLoginModal = ({ isOpen, onClose, onLogin }: { isOpen: boolean, onC
       await signInWithEmailAndPassword(auth, email, password);
       onLogin();
     } catch (err: any) {
+      console.error(err);
       setError('Credenciales incorrectas o problema de conexión.');
     } finally {
       setLoading(false);

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Search, Package, Save, Plus, Trash2, Building2 } from 'lucide-react';
+import { X, Search, Package, Plus, Trash2, Building2 } from 'lucide-react';
 
 interface ReceiveProductsModalProps {
   isOpen: boolean;

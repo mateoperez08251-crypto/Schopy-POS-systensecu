@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import TopNav from "../components/TopNav";
-import { ShieldAlert, AlertTriangle, Search, Filter, Play, CheckCircle2, XCircle, Activity, Database, Clock } from "lucide-react";
+import { ShieldAlert, AlertTriangle, Search, Filter, Play, CheckCircle2, Activity, Database, Clock } from "lucide-react";
 import VideoEvidenceModal from "../components/audit/VideoEvidenceModal";
 import { useAuth } from '../context/AuthContext';
 import { subscribeToAuditLogs, type AuditEvent } from '../firebase/auditService';
@@ -46,7 +46,9 @@ const INITIAL_INCIDENTS = [
 ];
 
 const Audit = () => {
-  const { userData } = useAuth();
+  const { userData, companyId } = useAuth();
+  const effectiveCompanyId = userData?.companyId || companyId || 'local';
+  
   const [activeTab, setActiveTab] = useState<'AI' | 'SYSTEM'>('AI');
   const [incidents, setIncidents] = useState(INITIAL_INCIDENTS);
   const [systemLogs, setSystemLogs] = useState<AuditEvent[]>([]);
@@ -56,13 +58,13 @@ const Audit = () => {
   const [selectedIncident, setSelectedIncident] = useState<any | null>(null);
 
   useEffect(() => {
-    if (userData?.companyId) {
-      const unsubscribe = subscribeToAuditLogs(userData.companyId, (logs) => {
+    if (effectiveCompanyId) {
+      const unsubscribe = subscribeToAuditLogs(effectiveCompanyId, (logs) => {
         setSystemLogs(logs);
       });
       return () => unsubscribe();
     }
-  }, [userData?.companyId]);
+  }, [effectiveCompanyId]);
 
   const pendingCount = incidents.filter(i => i.status === "Pendiente").length;
   const highRiskCount = incidents.filter(i => i.risk === "Alto" && i.status === "Pendiente").length;

@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Building2, User, Phone, Mail, Tag, Save, FileText } from 'lucide-react';
+import { searchByRnc, searchByName } from '../../utils/rncLookup';
+import Toast from '../Toast';
 
 interface SupplierFormModalProps {
   isOpen: boolean;
@@ -9,6 +11,9 @@ interface SupplierFormModalProps {
 }
 
 const SupplierFormModal: React.FC<SupplierFormModalProps> = ({ isOpen, onClose, onSubmit, initialData }) => {
+  const [isLoadingRnc, setIsLoadingRnc] = useState(false);
+  const [isLoadingName, setIsLoadingName] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     name: '',
     rnc: '',
@@ -17,6 +22,48 @@ const SupplierFormModal: React.FC<SupplierFormModalProps> = ({ isOpen, onClose, 
     email: '',
     category: ''
   });
+
+  const searchRNC = async (rncToSearch?: string) => {
+    const targetRnc = rncToSearch || formData.rnc;
+    if (!targetRnc || targetRnc.length < 9) return;
+    setIsLoadingRnc(true);
+    try {
+      const result = await searchByRnc(targetRnc);
+      if (result) {
+        setFormData(prev => ({ ...prev, name: result.nombre_razon_social || result.nombre_comercial }));
+      } else {
+        setErrorMsg("No se encontró ningún contribuyente con ese RNC/Cédula.");
+      }
+    } catch (error) {
+      setErrorMsg("Hubo un error al buscar el RNC.");
+    } finally {
+      setIsLoadingRnc(false);
+    }
+  };
+
+  const searchName = async () => {
+    if (!formData.name || formData.name.length < 3) {
+      setErrorMsg("Por favor ingrese al menos 3 caracteres para buscar por nombre.");
+      return;
+    }
+    setIsLoadingName(true);
+    try {
+      const result = await searchByName(formData.name);
+      if (result) {
+        setFormData(prev => ({ 
+          ...prev, 
+          rnc: result.cedula_rnc.replace(/[^0-9]/g, ''),
+          name: result.nombre_razon_social || result.nombre_comercial || prev.name
+        }));
+      } else {
+        setErrorMsg("No se encontró ningún RNC con ese nombre.");
+      }
+    } catch (error) {
+      setErrorMsg("Hubo un error al buscar por nombre.");
+    } finally {
+      setIsLoadingName(false);
+    }
+  };
 
   useEffect(() => {
     if (isOpen) {
@@ -82,11 +129,26 @@ const SupplierFormModal: React.FC<SupplierFormModalProps> = ({ isOpen, onClose, 
         </div>
 
         {/* Body */}
-        <div style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+        <div style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '20px', position: 'relative' }}>
+          
+          {errorMsg && (
+            <div style={{ position: 'absolute', top: '24px', left: '50%', transform: 'translateX(-50%)', zIndex: 100 }}>
+              <Toast message={errorMsg} type="error" onClose={() => setErrorMsg(null)} />
+            </div>
+          )}
           
           <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '16px' }}>
             <div className="form-group">
-              <label style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '8px', display: 'block' }}>Nombre de la Empresa</label>
+              <label style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '8px', display: 'flex', justifyContent: 'space-between' }}>
+                Nombre de la Empresa
+                <button 
+                  onClick={searchName} 
+                  type="button"
+                  style={{ background: 'none', border: 'none', color: 'var(--accent-primary)', fontSize: '0.75rem', cursor: 'pointer', fontWeight: 700 }}
+                >
+                  {isLoadingName ? 'Buscando...' : 'Buscar RNC'}
+                </button>
+              </label>
               <div style={{ position: 'relative' }}>
                 <Building2 size={20} color="var(--text-muted)" style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', zIndex: 1 }} />
                 <input type="text" placeholder="Ej. Distribuidora Corripio" 
@@ -112,7 +174,16 @@ const SupplierFormModal: React.FC<SupplierFormModalProps> = ({ isOpen, onClose, 
             </div>
 
             <div className="form-group">
-              <label style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '8px', display: 'block' }}>RNC / Cédula</label>
+              <label style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '8px', display: 'flex', justifyContent: 'space-between' }}>
+                RNC / Cédula
+                <button 
+                  onClick={() => searchRNC()} 
+                  type="button"
+                  style={{ background: 'none', border: 'none', color: 'var(--accent-primary)', fontSize: '0.75rem', cursor: 'pointer', fontWeight: 700 }}
+                >
+                  {isLoadingRnc ? 'Buscando...' : 'Buscar'}
+                </button>
+              </label>
               <div style={{ position: 'relative' }}>
                 <FileText size={20} color="var(--text-muted)" style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', zIndex: 1 }} />
                 <input type="text" placeholder="Ej. 130000000" 
@@ -120,18 +191,33 @@ const SupplierFormModal: React.FC<SupplierFormModalProps> = ({ isOpen, onClose, 
                     width: '100%', height: '54px', paddingLeft: '48px', paddingRight: '16px',
                     backgroundColor: 'var(--bg-app)', border: '1px solid var(--border-light)',
                     borderRadius: '12px', color: 'var(--text-primary)', fontSize: '1rem', fontWeight: 500,
-                    transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)', outline: 'none', position: 'relative'
+                    transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)', outline: 'none', position: 'relative',
+                    opacity: isLoadingRnc ? 0.7 : 1
                   }}
-                  value={formData.rnc} onChange={e => setFormData({...formData, rnc: e.target.value})} 
+                  value={formData.rnc} 
+                  onChange={e => {
+                    const val = e.target.value;
+                    setFormData({...formData, rnc: val});
+                    const clean = val.replace(/[^0-9]/g, '');
+                    if (clean.length === 9 || clean.length === 11) {
+                      searchRNC(clean);
+                    }
+                  }} 
+                  onBlur={(e) => {
+                    e.target.style.boxShadow = 'none';
+                    e.target.style.borderColor = 'var(--border-light)';
+                    e.target.style.backgroundColor = 'var(--bg-app)';
+                  }}
                   onFocus={(e) => {
                     e.target.style.boxShadow = '0 0 0 2px var(--accent-primary), 0 0 20px rgba(79, 70, 229, 0.15)';
                     e.target.style.borderColor = 'var(--accent-primary)';
                     e.target.style.backgroundColor = 'var(--bg-card)';
                   }}
-                  onBlur={(e) => {
-                    e.target.style.boxShadow = 'none';
-                    e.target.style.borderColor = 'var(--border-light)';
-                    e.target.style.backgroundColor = 'var(--bg-app)';
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      searchRNC();
+                    }
                   }}
                 />
               </div>

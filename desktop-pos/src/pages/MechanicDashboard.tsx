@@ -3,29 +3,31 @@ import { useAuth } from '../context/AuthContext';
 import { subscribeToMechanics } from '../firebase/localMechanicsService';
 import { subscribeToSales } from '../firebase/localSalesService';
 import { Wrench, DollarSign, Trophy, TrendingUp, Search } from 'lucide-react';
-import {
+import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip,
-  ResponsiveContainer, Cell
+  ResponsiveContainer
 } from 'recharts';
 
 const MechanicDashboard = () => {
-  const { userData, currentUser, companyId } = useAuth();
+  const { userData, companyId } = useAuth();
   const currency = (userData as any)?.currency || '$';
   
   const [mechanics, setMechanics] = useState<any[]>([]);
   const [sales, setSales] = useState<any[]>([]);
   const [selectedMechanicId, setSelectedMechanicId] = useState<string>('');
 
+  const effectiveCompanyId = userData?.companyId || companyId || 'local';
+
   useEffect(() => {
-    if (!companyId) return;
-    const unsubMechanics = subscribeToMechanics(companyId, (data) => {
+    if (!effectiveCompanyId) return;
+    const unsubMechanics = subscribeToMechanics(effectiveCompanyId, (data) => {
       setMechanics(data);
       if (data.length > 0 && !selectedMechanicId) {
         setSelectedMechanicId(data[0].id);
       }
     });
     
-    const unsubSales = subscribeToSales(companyId, (data) => {
+    const unsubSales = subscribeToSales(effectiveCompanyId, (data) => {
       setSales(data);
     });
 

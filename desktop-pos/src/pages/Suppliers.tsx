@@ -1,34 +1,53 @@
 import React, { useState } from 'react';
-import { Search, Plus, Filter, Edit, Building2, Mail, Phone, MapPin, Truck, FileText } from 'lucide-react';
+import { Search, Plus, Filter, Edit, Building2, Mail, Phone, MapPin, Truck, FileText, Trash2 } from 'lucide-react';
 import SupplierFormModal from '../components/suppliers/SupplierFormModal';
+import { addSupplier, updateSupplier, deleteSupplier } from '../firebase/suppliersService';
+import { useAuth } from '../context/AuthContext';
 
 const Suppliers = ({ suppliers, setSuppliers, showToast }: { suppliers: any[], setSuppliers: (sups: any[]) => void, showToast?: (m: string, t?: 'success'|'error') => void }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingSupplier, setEditingSupplier] = useState<any>(null);
+  const { userData, companyId } = useAuth();
+  const effectiveCompanyId = userData?.companyId || companyId || 'local';
 
-  const handleAddSupplier = (data: any) => {
-    if (editingSupplier) {
-      const updated = suppliers.map(s => s.id === editingSupplier.id ? { ...s, ...data } : s);
-      setSuppliers(updated);
-      if (showToast) showToast('Proveedor actualizado exitosamente', 'success');
-    } else {
-      const newSupplier = {
-        id: suppliers.length + 1,
-        name: data.name,
-        rnc: data.rnc,
-        contact: data.contact,
-        phone: data.phone,
-        email: data.email,
-        category: data.category,
-        status: 'Activo',
-        pendingBalance: 0
-      };
-      setSuppliers([...suppliers, newSupplier]);
-      if (showToast) showToast('Proveedor agregado exitosamente', 'success');
+  const handleAddSupplier = async (data: any) => {
+    try {
+      if (editingSupplier && editingSupplier.id) {
+        await updateSupplier(editingSupplier.id, data);
+        if (showToast) showToast('Proveedor actualizado exitosamente', 'success');
+      } else {
+        const newSupplier = {
+          name: data.name,
+          rnc: data.rnc,
+          contact: data.contact,
+          phone: data.phone,
+          email: data.email,
+          category: data.category,
+          status: 'Activo',
+          pendingBalance: 0
+        };
+        await addSupplier(effectiveCompanyId, newSupplier);
+        if (showToast) showToast('Proveedor agregado exitosamente', 'success');
+      }
+      setIsModalOpen(false);
+      setEditingSupplier(null);
+    } catch (error) {
+      console.error(error);
+      if (showToast) showToast('Error al guardar el proveedor', 'error');
     }
-    setIsModalOpen(false);
-    setEditingSupplier(null);
+  };
+
+  const handleDelete = async (id: string) => {
+    if (window.confirm('¿Estás seguro de que deseas eliminar este proveedor?')) {
+      try {
+        await deleteSupplier(id);
+        if (showToast) showToast('Proveedor eliminado exitosamente', 'success');
+      } catch (error) {
+        console.error(error);
+        if (showToast) showToast('Error al eliminar el proveedor', 'error');
+      }
+    }
   };
 
   const filteredSuppliers = suppliers.filter(s => 
@@ -131,15 +150,25 @@ const Suppliers = ({ suppliers, setSuppliers, showToast }: { suppliers: any[], s
                   </div>
                 </div>
               </div>
-              <button 
-                onClick={() => {
-                  setEditingSupplier(supplier);
-                  setIsModalOpen(true);
-                }}
-                style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}
-              >
-                <Edit size={20} />
-              </button>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <button 
+                  onClick={() => {
+                    setEditingSupplier(supplier);
+                    setIsModalOpen(true);
+                  }}
+                  style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}
+                >
+                  <Edit size={20} />
+                </button>
+                {userData?.role === 'admin' && (
+                  <button 
+                    onClick={() => handleDelete(supplier.id)}
+                    style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--accent-danger)' }}
+                  >
+                    <Trash2 size={20} />
+                  </button>
+                )}
+              </div>
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '0.9rem', color: 'var(--text-secondary)' }}>

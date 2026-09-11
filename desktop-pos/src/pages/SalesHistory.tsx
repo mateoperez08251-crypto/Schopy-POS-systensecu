@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { Search, Clock, Receipt, Printer, Calendar as CalendarIcon, Download, Edit, ShoppingCart, RotateCcw } from 'lucide-react';
-import { updateSale } from '../firebase/localSalesService';
+import { Search, Clock, Receipt, Printer, Calendar as CalendarIcon, Download, Edit, ShoppingCart, RotateCcw, Trash2 } from 'lucide-react';
+import { updateSale, deleteSale } from '../firebase/localSalesService';
 import { updateInventoryItem } from '../firebase/inventoryService';
 import { addReturn } from '../firebase/returnsService';
 
@@ -83,7 +83,12 @@ const SalesHistory: React.FC<SalesHistoryProps> = ({ salesHistory, inventory }) 
         
         <div class="row"><span>Ticket:</span> <span>#${sale.id}</span></div>
         <div class="row"><span>Fecha:</span> <span>${sale.date || (sale.createdAt ? sale.createdAt.split('T')[0] : '')} ${sale.time}</span></div>
-        <div class="row"><span>Cliente:</span> <span>${sale.client || 'Público en General'}</span></div>
+        ${sale.ncf ? `<div class="row"><span class="bold">NCF:</span> <span class="bold">${sale.ncf}</span></div>` : ''}
+        ${sale.ncf ? `<div class="row"><span>Tipo:</span> <span>${sale.invoiceType === 'credito' ? 'Crédito Fiscal' : 'Consumo'}</span></div>` : ''}
+        ${sale.client || sale.clientRnc ? '<div class="line"></div>' : ''}
+        ${sale.client ? `<div class="row"><span>Cliente:</span> <span>${sale.client}</span></div>` : ''}
+        ${sale.clientRnc ? `<div class="row"><span>RNC/Cédula:</span> <span>${sale.clientRnc}</span></div>` : ''}
+        ${!sale.client && !sale.clientRnc ? `<div class="row"><span>Cliente:</span> <span>Público en General</span></div>` : ''}
         ${sale.status === 'returned' ? '<div class="center bold" style="color: red; margin-top:5px;">*** VENTA DEVUELTA ***</div>' : ''}
         
         <div class="line"></div>
@@ -164,6 +169,21 @@ const SalesHistory: React.FC<SalesHistoryProps> = ({ salesHistory, inventory }) 
     }
   };
 
+  const handleDeleteSales = async () => {
+    if (!window.confirm(`¿Estás seguro de que deseas eliminar ${selectedIds.length} transacción(es)? Esta acción no se puede deshacer.`)) return;
+    
+    try {
+      for (const id of selectedIds) {
+        await deleteSale(id);
+      }
+      setSelectedIds([]);
+      alert('Venta(s) eliminada(s) exitosamente');
+    } catch (error) {
+      console.error(error);
+      alert('Error al eliminar las ventas');
+    }
+  };
+
   return (
     <div style={{ padding: '24px', height: '100%', display: 'flex', flexDirection: 'column', gap: '24px' }}>
       
@@ -184,6 +204,11 @@ const SalesHistory: React.FC<SalesHistoryProps> = ({ salesHistory, inventory }) 
           <button className="btn btn-outline" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <Download size={18} /> Exportar
           </button>
+          {selectedIds.length > 0 && userData?.role === 'admin' && (
+            <button onClick={handleDeleteSales} className="btn btn-outline" style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--accent-danger)', borderColor: 'var(--accent-danger)' }}>
+              <Trash2 size={18} /> Eliminar ({selectedIds.length})
+            </button>
+          )}
         </div>
       </div>
 

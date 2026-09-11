@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { updateStaffLocal } from '../firebase/localStaffService';
 
 const Settings = () => {
-  const { currentUser } = useAuth();
+  const { currentUser, refreshSettings } = useAuth();
   const [loading, setLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [message, setMessage] = useState({ type: '', text: '' });
@@ -23,6 +23,9 @@ const Settings = () => {
   
   const [printerName, setPrinterName] = useState('');
   const [autoOpenDrawer, setAutoOpenDrawer] = useState(true);
+
+  const [ncfConsumoSequence, setNcfConsumoSequence] = useState(1);
+  const [ncfCreditoSequence, setNcfCreditoSequence] = useState(1);
   
   const [requirePinForDiscount, setRequirePinForDiscount] = useState(false);
   const [requirePinForDelete, setRequirePinForDelete] = useState(false);
@@ -49,6 +52,8 @@ const Settings = () => {
           if (data.ticketFooter) setTicketFooter(data.ticketFooter);
           if (data.printerName) setPrinterName(data.printerName);
           if (data.autoOpenDrawer !== undefined) setAutoOpenDrawer(data.autoOpenDrawer);
+          if (data.ncfConsumoSequence !== undefined) setNcfConsumoSequence(data.ncfConsumoSequence);
+          if (data.ncfCreditoSequence !== undefined) setNcfCreditoSequence(data.ncfCreditoSequence);
           if (data.requirePinForDiscount !== undefined) setRequirePinForDiscount(data.requirePinForDiscount);
           if (data.requirePinForDelete !== undefined) setRequirePinForDelete(data.requirePinForDelete);
         }
@@ -79,10 +84,13 @@ const Settings = () => {
         ticketFooter,
         printerName,
         autoOpenDrawer,
+        ncfConsumoSequence,
+        ncfCreditoSequence,
         requirePinForDiscount,
         requirePinForDelete
       };
       localStorage.setItem('schopy_store_settings', JSON.stringify(settingsData));
+      refreshSettings(); // Aplicar cambios inmediatamente en toda la app
       // Si el usuario intentó guardar el PIN usando el botón principal
       if (newPin.length === 4) {
         if (currentUser.pin && currentUser.pin !== currentPin) {
@@ -240,6 +248,34 @@ const Settings = () => {
                   Activar IVA
                 </label>
               </div>
+            </div>
+          </div>
+
+          {/* Secuencias NCF */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginTop: '16px', borderTop: '1px dashed var(--border-medium)', paddingTop: '16px' }}>
+            <div>
+              <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '6px' }}>Secuencia NCF (Consumo B02)</label>
+              <input 
+                type="number" 
+                min="1" 
+                value={ncfConsumoSequence} 
+                onChange={e => setNcfConsumoSequence(parseInt(e.target.value) || 1)} 
+                onWheel={(e) => (e.target as HTMLInputElement).blur()}
+                style={{ width: '100%', padding: '10px 12px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-medium)', background: 'var(--bg-app)', color: 'var(--text-primary)', outline: 'none' }} 
+              />
+              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Siguiente: B02{String(ncfConsumoSequence).padStart(8, '0')}</span>
+            </div>
+            <div>
+              <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '6px' }}>Secuencia NCF (Crédito B01)</label>
+              <input 
+                type="number" 
+                min="1" 
+                value={ncfCreditoSequence} 
+                onChange={e => setNcfCreditoSequence(parseInt(e.target.value) || 1)} 
+                onWheel={(e) => (e.target as HTMLInputElement).blur()}
+                style={{ width: '100%', padding: '10px 12px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-medium)', background: 'var(--bg-app)', color: 'var(--text-primary)', outline: 'none' }} 
+              />
+              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Siguiente: B01{String(ncfCreditoSequence).padStart(8, '0')}</span>
             </div>
           </div>
         </div>

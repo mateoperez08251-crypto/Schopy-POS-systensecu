@@ -165,24 +165,22 @@ const Staff = ({ showToast }: { showToast?: (m: string, t?: 'success'|'error'|'i
   
   const [activeTab, setActiveTab] = useState<'staff' | 'mechanics'>('staff');
 
+  const effectiveCompanyId = userData?.companyId || companyId || 'local';
+
   useEffect(() => {
-    if (!companyId) return;
-    const unsubStaff = subscribeToStaffLocal(companyId, (items) => setStaffList(items));
-    const unsubMechanics = subscribeToMechanics(companyId, (items) => setMechanicsList(items));
+    if (!effectiveCompanyId) return;
+    const unsubStaff = subscribeToStaffLocal(effectiveCompanyId, (items) => setStaffList(items));
+    const unsubMechanics = subscribeToMechanics(effectiveCompanyId, (items) => setMechanicsList(items));
     return () => {
       unsubStaff();
       unsubMechanics();
     };
-  }, [companyId]);
+  }, [effectiveCompanyId]);
 
   const handleAddStaff = async (data: any) => {
-    try {
-      if (!companyId) throw new Error('No hay empresa conectada');
-      await addStaffLocal(companyId, data);
-      if (showToast) showToast('Usuario registrado exitosamente', 'success');
-    } catch (error: any) {
-      throw error; 
-    }
+    if (!effectiveCompanyId) throw new Error('No hay empresa conectada');
+    await addStaffLocal(effectiveCompanyId, data);
+    if (showToast) showToast('Usuario registrado exitosamente', 'success');
   };
 
   const handleDeleteStaff = async (id: string, name: string) => {
@@ -197,13 +195,9 @@ const Staff = ({ showToast }: { showToast?: (m: string, t?: 'success'|'error'|'i
   };
 
   const handleAddMechanic = async (data: any) => {
-    try {
-      if (!companyId) throw new Error('No hay empresa conectada');
-      await addMechanic(companyId, data);
-      if (showToast) showToast('Mecánico registrado exitosamente', 'success');
-    } catch (error: any) {
-      throw error;
-    }
+    if (!effectiveCompanyId) throw new Error('No hay empresa conectada');
+    await addMechanic(effectiveCompanyId, data);
+    if (showToast) showToast('Mecánico registrado exitosamente', 'success');
   };
 
   const handleDeleteMechanic = async (id: string, name: string) => {

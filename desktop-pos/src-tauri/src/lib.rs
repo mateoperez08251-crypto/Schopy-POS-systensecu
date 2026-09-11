@@ -1,7 +1,7 @@
+use std::env;
 use std::fs::File;
 use std::io::Write;
 use std::process::Command;
-use std::env;
 
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 #[tauri::command]
@@ -35,7 +35,13 @@ fn open_cash_drawer(printer_name: String) -> Result<String, String> {
     let printer_path = format!("\\\\{}\\{}", computer_name, printer_name);
 
     let output = Command::new("cmd")
-        .args(&["/C", "copy", "/B", temp_file_path.to_str().unwrap(), &printer_path])
+        .args(&[
+            "/C",
+            "copy",
+            "/B",
+            temp_file_path.to_str().unwrap(),
+            &printer_path,
+        ])
         .output()
         .map_err(|e| format!("Error de ejecución: {}", e))?;
 
@@ -50,6 +56,7 @@ fn open_cash_drawer(printer_name: String) -> Result<String, String> {
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_http::init())
         .plugin(tauri_plugin_opener::init())
         .invoke_handler(tauri::generate_handler![greet, open_cash_drawer])
         .run(tauri::generate_context!())

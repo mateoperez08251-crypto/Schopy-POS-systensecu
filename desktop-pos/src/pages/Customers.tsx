@@ -4,7 +4,7 @@ import CustomerFormModal from '../components/customers/CustomerFormModal';
 import { useAuth } from '../context/AuthContext';
 import { addCustomer, deleteCustomer } from '../firebase/customersService';
 
-const Customers = ({ customers, setCustomers, showToast }: { customers: any[], setCustomers: (cust: any[]) => void, showToast?: (m: string, t?: 'success'|'error'|'info') => void }) => {
+const Customers = ({ customers, showToast }: { customers: any[], setCustomers: (cust: any[]) => void, showToast?: (m: string, t?: 'success'|'error'|'info') => void }) => {
   const { userData } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -31,6 +31,7 @@ const Customers = ({ customers, setCustomers, showToast }: { customers: any[], s
       if (showToast) showToast('Cliente agregado exitosamente', 'success');
       setIsModalOpen(false);
     } catch (error) {
+      console.error(error);
       if (showToast) showToast('Error al agregar el cliente', 'error');
     }
   };
@@ -41,6 +42,7 @@ const Customers = ({ customers, setCustomers, showToast }: { customers: any[], s
         await deleteCustomer(id);
         if (showToast) showToast('Cliente eliminado', 'info');
       } catch (error) {
+        console.error(error);
         if (showToast) showToast('Error al eliminar', 'error');
       }
       setActiveMenu(null);
@@ -182,12 +184,14 @@ const Customers = ({ customers, setCustomers, showToast }: { customers: any[], s
                       >
                         Editar
                       </div>
-                      <div 
-                        onClick={() => handleDelete(customer.id)}
-                        style={{ padding: '10px 16px', fontSize: '0.85rem', cursor: 'pointer', color: 'var(--accent-danger)' }} className="hover:bg-[var(--bg-app)]"
-                      >
-                        Eliminar
-                      </div>
+                      {userData?.role === 'admin' && (
+                        <div 
+                          onClick={() => handleDelete(customer.id)}
+                          style={{ padding: '10px 16px', fontSize: '0.85rem', cursor: 'pointer', color: 'var(--accent-danger)' }} className="hover:bg-[var(--bg-app)]"
+                        >
+                          Eliminar
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>

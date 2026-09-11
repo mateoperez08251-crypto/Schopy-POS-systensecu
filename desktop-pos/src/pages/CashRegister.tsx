@@ -13,7 +13,7 @@ interface CashRegisterProps {
   showToast?: (message: string, type?: 'success' | 'error' | 'info') => void;
 }
 
-const CashRegister: React.FC<CashRegisterProps> = ({ salesHistory = [], setSalesHistory, showToast }) => {
+const CashRegister: React.FC<CashRegisterProps> = ({ salesHistory = [], showToast }) => {
   const { currentUser, userData } = useAuth();
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -236,7 +236,9 @@ const CashRegister: React.FC<CashRegisterProps> = ({ salesHistory = [], setSales
       
       try {
         doc.addImage(img, 'PNG', 14, 5, 18, 18);
-      } catch (e) {}
+      } catch (e) {
+        console.warn('Error loading logo for PDF:', e);
+      }
 
       doc.setTextColor(255, 255, 255);
       doc.setFontSize(16);

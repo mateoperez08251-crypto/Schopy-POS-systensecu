@@ -34,6 +34,7 @@ interface AuthContextType {
   staffList: UserData[];
   localLogin: (pin: string, expectedUserId?: string) => Promise<boolean>;
   forceLogin: (user: UserData) => void;
+  refreshSettings: () => void;
   logout: () => void;
   firebaseLogout: () => void;
   createInitialAdmin: (name: string, pin: string) => Promise<void>;
@@ -49,6 +50,7 @@ const AuthContext = createContext<AuthContextType>({
   staffList: [],
   localLogin: async () => false,
   forceLogin: () => {},
+  refreshSettings: () => {},
   logout: () => {},
   firebaseLogout: () => {},
   createInitialAdmin: async () => {},
@@ -97,7 +99,9 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
           try {
             const stored = localStorage.getItem('schopy_store_settings');
             if (stored) storeSettings = JSON.parse(stored);
-          } catch(e) {}
+          } catch(e) {
+            console.error(e);
+          }
           setCurrentUser({ ...user, ...storeSettings });
         }
       }
@@ -120,7 +124,9 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
       try {
         const stored = localStorage.getItem('schopy_store_settings');
         if (stored) storeSettings = JSON.parse(stored);
-      } catch(e) {}
+      } catch(e) {
+        console.error(e);
+      }
       setCurrentUser({ ...user, ...storeSettings });
       sessionStorage.setItem('schopy_active_pin', pin);
       return true;
@@ -133,9 +139,23 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
     try {
       const stored = localStorage.getItem('schopy_store_settings');
       if (stored) storeSettings = JSON.parse(stored);
-    } catch(e) {}
+    } catch(e) {
+      console.error(e);
+    }
     setCurrentUser({ ...user, ...storeSettings });
     sessionStorage.setItem('schopy_active_pin', user.pin || '');
+  };
+
+  const refreshSettings = () => {
+    if (!currentUser) return;
+    let storeSettings = {};
+    try {
+      const stored = localStorage.getItem('schopy_store_settings');
+      if (stored) storeSettings = JSON.parse(stored);
+    } catch(e) {
+      console.error(e);
+    }
+    setCurrentUser({ ...currentUser, ...storeSettings });
   };
 
   const logout = () => {
@@ -173,6 +193,7 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
     staffList,
     localLogin,
     forceLogin,
+    refreshSettings,
     logout,
     firebaseLogout,
     createInitialAdmin

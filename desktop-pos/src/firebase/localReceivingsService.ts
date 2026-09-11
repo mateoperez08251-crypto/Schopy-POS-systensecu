@@ -10,6 +10,7 @@ export interface Receiving {
   user: string;
   notes?: string;
   companyId?: string;
+  receivedItems?: any[];
 }
 
 const COLLECTION_NAME = 'receivings';

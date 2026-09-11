@@ -1,5 +1,4 @@
 import React, { useState, useMemo } from 'react';
-import TopNav from '../components/TopNav';
 import { Search, Plus, Calendar, Filter, Truck, Edit, Trash2, ChevronDown, AlertTriangle } from 'lucide-react';
 import Fuse from 'fuse.js';
 import ProductFormModal from '../components/inventory/ProductFormModal';
@@ -7,7 +6,7 @@ import ConfirmDeleteModal from '../components/inventory/ConfirmDeleteModal';
 import { useAuth } from '../context/AuthContext';
 import { addInventoryItem, updateInventoryItem, deleteInventoryItem } from '../firebase/inventoryService';
 
-const Inventory = ({ inventory, setInventory, suppliers, showToast }: { inventory: any[], setInventory: (inv: any[]) => void, suppliers?: any[], showToast?: (m: string, t?: 'success'|'error'|'info') => void }) => {
+const Inventory = ({ inventory, suppliers, showToast }: { inventory: any[], setInventory: (inv: any[]) => void, suppliers?: any[], showToast?: (m: string, t?: 'success'|'error'|'info') => void }) => {
   const { userData } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
   const [supplierTerm, setSupplierTerm] = useState('');
@@ -66,6 +65,7 @@ const Inventory = ({ inventory, setInventory, suppliers, showToast }: { inventor
             setEditingProduct((prev: any) => ({ ...prev, name: '' }));
           }
         } catch (err) {
+          console.error(err);
           setEditingProduct((prev: any) => ({ ...prev, name: '' }));
         }
         return;
@@ -96,6 +96,15 @@ const Inventory = ({ inventory, setInventory, suppliers, showToast }: { inventor
   const handleSaveProduct = async (productData: any) => {
     const currentCompanyId = userData?.companyId || 'local';
 
+    // Validación de código de barras duplicado
+    if (productData.code && productData.code.trim() !== '') {
+      const duplicate = inventory.find(p => p.code === productData.code && p.id !== productData.id);
+      if (duplicate) {
+        if (showToast) showToast('Ese código de barras ya está asignado al producto: ' + duplicate.name, 'error');
+        return;
+      }
+    }
+
     try {
       if (productData.id) {
         // Editar
@@ -108,6 +117,7 @@ const Inventory = ({ inventory, setInventory, suppliers, showToast }: { inventor
       }
       setIsModalOpen(false);
     } catch (error) {
+      console.error(error);
       if (showToast) showToast('Error al guardar el producto', 'error');
     }
   };
@@ -123,6 +133,7 @@ const Inventory = ({ inventory, setInventory, suppliers, showToast }: { inventor
         await deleteInventoryItem(productToDelete.id);
         if (showToast) showToast('Producto eliminado', 'success');
       } catch (error) {
+        console.error(error);
         if (showToast) showToast('Error al eliminar', 'error');
       }
     }

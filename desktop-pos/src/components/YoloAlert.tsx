@@ -2,13 +2,18 @@ import React from 'react';
 
 interface YoloAlertProps {
   message?: string;
+  type?: 'error' | 'warning';
   onClose?: () => void;
 }
 
 const YoloAlert: React.FC<YoloAlertProps> = ({ 
-  message = "Apertura de caja sin venta", 
+  message = "Apertura de caja sin venta",
+  type = 'error',
   onClose 
 }) => {
+  const color = type === 'warning' ? '#d29922' : '#f85149';
+  const bg = type === 'warning' ? 'rgba(210, 153, 34, 0.1)' : 'rgba(248, 81, 73, 0.1)';
+  const shadow = type === 'warning' ? 'rgba(210, 153, 34, 0.15)' : 'rgba(248, 81, 73, 0.15)';
   return (
     <div style={{
       position: 'relative',
@@ -25,10 +30,10 @@ const YoloAlert: React.FC<YoloAlertProps> = ({
       transition: 'all 0.5s ease',
       borderStyle: 'solid',
       borderWidth: '1px',
-      borderColor: '#f85149',
-      color: '#f85149', 
-      background: 'linear-gradient(#f851491a, #f851491a)',
-      boxShadow: '0 4px 12px rgba(248, 81, 73, 0.15)',
+      borderColor: color,
+      color: color, 
+      background: `linear-gradient(${bg}, ${bg})`,
+      boxShadow: `0 4px 12px ${shadow}`,
       zIndex: 9999
     }}>
       <button
@@ -41,8 +46,8 @@ const YoloAlert: React.FC<YoloAlertProps> = ({
           padding: '4px', 
           borderRadius: '6px', 
           transition: 'opacity 0.2s',
-          color: '#f85149',
-          border: '1px solid #f85149',
+          color: color,
+          border: `1px solid ${color}`,
           opacity: 0.6,
           cursor: 'pointer',
           background: 'transparent',

@@ -36,6 +36,7 @@ import { useAuth } from './context/AuthContext';
 import { subscribeToInventory } from './firebase/inventoryService';
 import { subscribeToCustomers } from './firebase/customersService';
 import { subscribeToSales } from './firebase/localSalesService';
+import { subscribeToSuppliers } from './firebase/suppliersService';
 
 function App() {
   const [salesHistory, setSalesHistory] = useState<any[]>([]);
@@ -47,16 +48,24 @@ function App() {
 
   const { firebaseUser, companyId, currentUser, userData } = useAuth();
 
+  const effectiveCompanyId = userData?.companyId || companyId || 'local';
+
   React.useEffect(() => {
-    if (!companyId) return;
+    if (!effectiveCompanyId) return;
     
-    const unsubInventory = subscribeToInventory(companyId, (items) => {
+    const unsubInventory = subscribeToInventory(effectiveCompanyId, (items) => {
       setInventory(items);
     });
-    const unsubCustomers = subscribeToCustomers(companyId, (items) => {
+    const unsubCustomers = subscribeToCustomers(effectiveCompanyId, (items) => {
       setCustomers(items);
     });
-    const unsubSales = subscribeToSales(companyId, (items) => {
+    const unsubSuppliers = subscribeToSuppliers(effectiveCompanyId, (items) => {
+      // If we get items, use them, otherwise fallback to mock data or empty
+      if (items.length > 0) {
+        setSuppliers(items);
+      }
+    });
+    const unsubSales = subscribeToSales(effectiveCompanyId, (items) => {
       setSalesHistory(items.sort((a: any, b: any) => {
         const da = a.createdAt || a.date || '';
         const db = b.createdAt || b.date || '';
@@ -66,9 +75,10 @@ function App() {
     return () => {
       unsubInventory();
       unsubCustomers();
+      unsubSuppliers();
       unsubSales();
     };
-  }, []);
+  }, [effectiveCompanyId]);
 
   const showToast = (message: string, type: 'success' | 'error' | 'info' = 'success') => {
     setToast({ message, type });

@@ -116,7 +116,8 @@ const NewReceiving = ({ inventory, setInventory, suppliers, showToast }: { inven
         items: items.length,
         totalCost: totalCost,
         user: userData?.name || 'Admin',
-        notes: orderNotes
+        notes: orderNotes,
+        receivedItems: items
       });
     }
 
@@ -131,48 +132,47 @@ const NewReceiving = ({ inventory, setInventory, suppliers, showToast }: { inven
       img.onerror = resolve;
     });
     
-    // Configuración inicial y marca de agua / estilo corporativo
-    doc.setFillColor(15, 23, 42); // Accent primary moderno
-    doc.rect(0, 0, 210, 30, 'F');
-    
+    // Configuración inicial y marca de agua / estilo corporativo (Monocromático Profesional)
     try {
-      doc.addImage(img, 'PNG', 14, 6, 18, 18);
+      doc.addImage(img, 'PNG', 14, 10, 18, 18);
     } catch (e) {}
 
-    doc.setTextColor(255, 255, 255);
-    doc.setFontSize(16);
+    doc.setTextColor(0, 0, 0);
+    doc.setFontSize(18);
     doc.setFont('helvetica', 'bold');
     doc.text(userData?.companyName || 'SCHOPY POS', 36, 18);
     
     doc.setFontSize(10);
     doc.setFont('helvetica', 'normal');
-    doc.setTextColor(148, 163, 184); // slate-400
+    doc.setTextColor(0, 0, 0); 
     doc.text('COMPROBANTE DE ENTRADA', 196, 18, { align: 'right' });
 
-    doc.setTextColor(50, 50, 50);
     doc.setFontSize(10);
-    doc.text(`Fecha: ${new Date().toLocaleDateString('es-DO')} ${new Date().toLocaleTimeString('es-DO')}`, 14, 40);
+    doc.text(`Fecha: ${new Date().toLocaleDateString('es-DO')} ${new Date().toLocaleTimeString('es-DO')}`, 14, 35);
+
+    // Separador
+    doc.setDrawColor(0, 0, 0);
+    doc.setLineWidth(0.5);
+    doc.line(14, 40, 196, 40);
 
     // Datos del Proveedor
-    doc.setTextColor(50, 50, 50);
-    doc.setFontSize(14);
+    doc.setFontSize(12);
     doc.setFont('helvetica', 'bold');
-    doc.text('DATOS DEL PROVEEDOR', 14, 55);
+    doc.text('DATOS DEL PROVEEDOR', 14, 50);
     
-    doc.setFontSize(11);
+    doc.setFontSize(10);
     doc.setFont('helvetica', 'normal');
-    doc.text(`Empresa: ${selectedSupplier.name}`, 14, 65);
-    doc.text(`RNC / Cédula: ${selectedSupplier.rnc}`, 14, 72);
-    doc.text(`Contacto: ${selectedSupplier.contact}`, 120, 65);
-    doc.text(`Teléfono: ${selectedSupplier.phone}`, 120, 72);
+    doc.text(`Empresa: ${selectedSupplier.name}`, 14, 58);
+    doc.text(`RNC / Cédula: ${selectedSupplier.rnc}`, 14, 65);
+    doc.text(`Contacto: ${selectedSupplier.contact}`, 120, 58);
+    doc.text(`Teléfono: ${selectedSupplier.phone}`, 120, 65);
     
     if (orderNotes) {
-      doc.text(`Notas/Devoluciones: ${orderNotes}`, 14, 79);
+      doc.text(`Notas/Devoluciones: ${orderNotes}`, 14, 72);
     }
 
     // Separador
-    doc.setDrawColor(200, 200, 200);
-    doc.line(14, 85, 196, 85);
+    doc.line(14, 78, 196, 78);
 
     // Tabla de Productos
     const tableData = items.map(item => {
@@ -191,15 +191,15 @@ const NewReceiving = ({ inventory, setInventory, suppliers, showToast }: { inven
     });
 
     autoTable(doc, {
-      startY: 95,
+      startY: 85,
       head: [['Código/SKU', 'Producto', 'Cant.', 'Costo Unit.', 'Total']],
       body: tableData,
-      theme: 'grid',
-      headStyles: { fillColor: [79, 70, 229], textColor: 255, fontStyle: 'bold' },
-      styles: { fontSize: 10, cellPadding: 5 },
+      theme: 'plain',
+      headStyles: { textColor: 0, fontStyle: 'bold', lineWidth: { bottom: 0.5 }, lineColor: 0 },
+      styles: { fontSize: 10, cellPadding: 4, textColor: 0 },
       columnStyles: {
         0: { cellWidth: 30 },
-        2: { halign: 'center', cellWidth: 20 },
+        2: { halign: 'center', cellWidth: 25 },
         3: { halign: 'right', cellWidth: 35 },
         4: { halign: 'right', cellWidth: 35 }
       }

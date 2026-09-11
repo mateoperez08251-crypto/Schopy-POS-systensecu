@@ -17,7 +17,8 @@ import { useAuth } from '../context/AuthContext';
 const Dashboard = () => {
   const [timeFilter, setTimeFilter] = useState<TimeFilter>('1 A');
   const { userData, companyId } = useAuth();
-  const { data, loading } = useDashboardData(companyId, timeFilter);
+  const effectiveCompanyId = userData?.companyId || companyId || 'local';
+  const { data, loading } = useDashboardData(effectiveCompanyId, timeFilter);
   const navigate = useNavigate();
   
   // Estados para las interacciones
@@ -51,35 +52,38 @@ const Dashboard = () => {
     // --- FUNCIÓN DE CABECERA Y PIE DE PÁGINA GLOBAL ---
     const addHeaderFooter = (data: any) => {
       // Cabecera en todas las páginas
-      doc.setFillColor(15, 23, 42); // slate-900 (más moderno)
-      doc.rect(0, 0, pageWidth, 28, 'F');
-      
       try {
-        doc.addImage(img, 'PNG', 14, 5, 18, 18);
-      } catch (e) {}
+        doc.addImage(img, 'PNG', 14, 10, 18, 18);
+      } catch (e) {
+        console.error(e);
+      }
       
-      doc.setTextColor(255, 255, 255);
+      doc.setTextColor(0, 0, 0);
       doc.setFontSize(16);
       doc.setFont('helvetica', 'bold');
-      doc.text(userData?.companyName || 'SCHOPY POS', 36, 17);
+      doc.text(userData?.companyName || 'SCHOPY POS', 36, 18);
       
       doc.setFontSize(10);
       doc.setFont('helvetica', 'normal');
-      doc.setTextColor(148, 163, 184); // slate-400
-      doc.text('REPORTE EJECUTIVO', pageWidth - 14, 17, { align: 'right' });
+      doc.setTextColor(0, 0, 0); 
+      doc.text('REPORTE EJECUTIVO', pageWidth - 14, 18, { align: 'right' });
+
+      doc.setDrawColor(0, 0, 0);
+      doc.setLineWidth(0.5);
+      doc.line(14, 25, pageWidth - 14, 25);
 
       // Pie de página en todas las páginas
-      doc.setFillColor(248, 250, 252); // Slate-50
-      doc.rect(0, pageHeight - 15, pageWidth, 15, 'F');
-      doc.setTextColor(100, 116, 139); // Slate-500
+      doc.setTextColor(0, 0, 0);
       doc.setFontSize(9);
-      doc.text(`Generado el: ${fecha} a las ${hora}`, 14, pageHeight - 6);
-      doc.text(`Página ${data.pageNumber} de ${data.pageCount || 1}`, pageWidth - 14, pageHeight - 6, { align: 'right' });
+      doc.setLineWidth(0.2);
+      doc.line(14, pageHeight - 15, pageWidth - 14, pageHeight - 15);
+      doc.text(`Generado el: ${fecha} a las ${hora}`, 14, pageHeight - 8);
+      doc.text(`Página ${data.pageNumber} de ${data.pageCount || 1}`, pageWidth - 14, pageHeight - 8, { align: 'right' });
     };
 
     // --- METADATA INICIAL ---
-    let startY = 40;
-    doc.setTextColor(15, 23, 42);
+    let startY = 35;
+    doc.setTextColor(0, 0, 0);
     doc.setFontSize(14);
     doc.setFont('helvetica', 'bold');
     
@@ -93,7 +97,7 @@ const Dashboard = () => {
     doc.text(`Resumen Ejecutivo ${tipoReporte}`, 14, startY);
     
     doc.setFontSize(10);
-    doc.setTextColor(71, 85, 105);
+    doc.setTextColor(0, 0, 0);
     doc.setFont('helvetica', 'normal');
     doc.text(`El siguiente documento detalla las métricas financieras, operativas y de seguridad correspondientes al período ${tipoReporte.toLowerCase()}.`, 14, startY + 6);
     
@@ -103,7 +107,7 @@ const Dashboard = () => {
     // SECCIÓN 1: MÉTRICAS GENERALES
     // ==========================================
     doc.setFontSize(12);
-    doc.setTextColor(15, 23, 42);
+    doc.setTextColor(0, 0, 0);
     doc.setFont('helvetica', 'bold');
     doc.text('1. MÉTRICAS CLAVE', 14, startY);
     
@@ -116,10 +120,9 @@ const Dashboard = () => {
         ['Ingresos Totales', data.metrics.totalRevenue, 'Recaudación bruta general'],
         ['Ganancia Neta', data.metrics.netProfit, 'Beneficio después de costos operativos']
       ],
-      theme: 'grid',
-      headStyles: { fillColor: [79, 70, 229], textColor: 255, fontStyle: 'bold' },
-      styles: { fontSize: 10, cellPadding: 5 },
-      alternateRowStyles: { fillColor: [249, 250, 251] },
+      theme: 'plain',
+      headStyles: { textColor: 0, fontStyle: 'bold', lineWidth: { bottom: 0.5 }, lineColor: 0 },
+      styles: { fontSize: 10, cellPadding: 4, textColor: 0 },
       didDrawPage: addHeaderFooter
     });
 
@@ -130,7 +133,7 @@ const Dashboard = () => {
     // SECCIÓN 2: DESGLOSE FINANCIERO (GANANCIAS Y COSTOS)
     // ==========================================
     doc.setFontSize(12);
-    doc.setTextColor(15, 23, 42);
+    doc.setTextColor(0, 0, 0);
     doc.setFont('helvetica', 'bold');
     doc.text(`2. ESTADO FINANCIERO ${tipoReporte.toUpperCase()}`, 14, startY);
     
@@ -159,15 +162,15 @@ const Dashboard = () => {
       startY: startY + 4,
       head: [['Período', 'Ingresos Brutos', 'Costos Operativos', 'Ganancia Neta', 'Margen']],
       body: bodyFinancials,
-      theme: 'striped',
-      headStyles: { fillColor: [16, 185, 129], textColor: 255 },
-      styles: { fontSize: 9, cellPadding: 4, halign: 'center' },
+      theme: 'plain',
+      headStyles: { textColor: 0, fontStyle: 'bold', lineWidth: { bottom: 0.5 }, lineColor: 0 },
+      styles: { fontSize: 9, cellPadding: 4, halign: 'center', textColor: 0 },
       columnStyles: { 0: { halign: 'left', fontStyle: 'bold' } },
       didParseCell: (hookData) => {
         if (hookData.row.index === bodyFinancials.length - 1) {
           hookData.cell.styles.fontStyle = 'bold';
-          hookData.cell.styles.fillColor = [226, 232, 240];
-          hookData.cell.styles.textColor = [15, 23, 42];
+          hookData.cell.styles.lineWidth = { top: 0.5 };
+          hookData.cell.styles.lineColor = 0;
         }
       },
       didDrawPage: addHeaderFooter
@@ -176,13 +179,13 @@ const Dashboard = () => {
     // @ts-ignore
     startY = doc.lastAutoTable.finalY + 15;
     
-    if (startY > 230) { doc.addPage(); startY = 40; }
+    if (startY > 230) { doc.addPage(); startY = 35; }
 
     // ==========================================
     // SECCIÓN 3: RENDIMIENTO DE PRODUCTOS
     // ==========================================
     doc.setFontSize(12);
-    doc.setTextColor(15, 23, 42);
+    doc.setTextColor(0, 0, 0);
     doc.setFont('helvetica', 'bold');
     doc.text('3. TOP 5 PRODUCTOS MÁS VENDIDOS', 14, startY);
     
@@ -195,22 +198,22 @@ const Dashboard = () => {
       startY: startY + 4,
       head: [['Rank', 'Producto', 'Unidades', 'Revenue Generado', 'Precio Promedio']],
       body: bodyProducts,
-      theme: 'grid',
-      headStyles: { fillColor: [245, 158, 11] },
-      styles: { fontSize: 9, cellPadding: 4 },
+      theme: 'plain',
+      headStyles: { textColor: 0, fontStyle: 'bold', lineWidth: { bottom: 0.5 }, lineColor: 0 },
+      styles: { fontSize: 9, cellPadding: 4, textColor: 0 },
       didDrawPage: addHeaderFooter
     });
 
     // @ts-ignore
     startY = doc.lastAutoTable.finalY + 15;
 
-    if (startY > 230) { doc.addPage(); startY = 40; }
+    if (startY > 230) { doc.addPage(); startY = 35; }
 
     // ==========================================
     // SECCIÓN 4: AUDITORÍA Y SEGURIDAD IA
     // ==========================================
     doc.setFontSize(12);
-    doc.setTextColor(15, 23, 42);
+    doc.setTextColor(0, 0, 0);
     doc.setFont('helvetica', 'bold');
     doc.text('4. AUDITORÍA DE SEGURIDAD IA', 14, startY);
     
@@ -223,9 +226,9 @@ const Dashboard = () => {
       startY: startY + 4,
       head: [['Período', 'Fraudes Evitados', 'En Revisión', 'Falsas Alarmas', 'Total Detectado']],
       body: bodyRetention,
-      theme: 'striped',
-      headStyles: { fillColor: [225, 29, 72] }, // Rose-600
-      styles: { fontSize: 9, halign: 'center', cellPadding: 4 },
+      theme: 'plain',
+      headStyles: { textColor: 0, fontStyle: 'bold', lineWidth: { bottom: 0.5 }, lineColor: 0 },
+      styles: { fontSize: 9, halign: 'center', cellPadding: 4, textColor: 0 },
       columnStyles: { 0: { halign: 'left', fontStyle: 'bold' } },
       didDrawPage: addHeaderFooter
     });
@@ -233,11 +236,11 @@ const Dashboard = () => {
     // --- MENSAJE FINAL ---
     // @ts-ignore
     startY = doc.lastAutoTable.finalY + 20;
-    if (startY > 260) { doc.addPage(); startY = 40; }
+    if (startY > 260) { doc.addPage(); startY = 35; }
 
     doc.setFontSize(10);
     doc.setFont('helvetica', 'italic');
-    doc.setTextColor(100, 116, 139);
+    doc.setTextColor(0, 0, 0);
     doc.text('*** Fin del Reporte ***', pageWidth / 2, startY, { align: 'center' });
     doc.text('Este documento fue generado automáticamente por el sistema de inteligencia artificial de Schopy POS.', pageWidth / 2, startY + 6, { align: 'center' });
 

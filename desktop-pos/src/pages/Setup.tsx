@@ -8,7 +8,7 @@ const Setup = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const { currentUser } = useAuth();
-  const navigate = useNavigate();
+
 
   const handleSetup = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -25,8 +25,7 @@ const Setup = () => {
     setError('');
 
     try {
-      // Usaremos el propio UID del creador como companyId para garantizar que sea único mundialmente
-      const companyId = currentUser.uid || currentUser.id;
+      // Usaremos el propio UID del creador como base para el entorno
       const settingsData = {
         companyName: companyName, // Guardamos el nombre para el header
       };

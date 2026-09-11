@@ -12,9 +12,10 @@
   "app": {
     "windows": [
       {
-        "title": "desktop-pos",
-        "width": 800,
-        "height": 600
+        "title": "Schopy POS",
+        "width": 1280,
+        "height": 800,
+        "maximized": true
       }
     ],
     "security": {
