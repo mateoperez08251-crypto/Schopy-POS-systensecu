@@ -514,11 +514,11 @@ const POSInterface: React.FC<POSInterfaceProps> = ({ salesHistory, setSalesHisto
         </div>
       </div>
 
-      {/* Contenedor Principal (Dividido en Top y Bottom) */}
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '24px', minHeight: 0 }}>
+      {/* Contenedor Principal (Dividido en 2 columnas) */}
+      <div style={{ flex: 1, display: 'flex', gap: '24px', minHeight: 0 }}>
         
-        {/* Sección Superior: Datos Cliente, Buscador y Productos */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', flexShrink: 0, maxHeight: '45%' }}>
+        {/* Columna Izquierda: Datos Cliente, Buscador y Productos */}
+        <div style={{ flex: '1', display: 'flex', flexDirection: 'column', gap: '16px', position: 'relative', overflow: 'hidden', minWidth: '320px' }}>
           
           {/* Datos del Cliente (Arriba del buscador, divididos) */}
           <div className="card" style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px', flexShrink: 0 }}>
@@ -689,8 +689,8 @@ const POSInterface: React.FC<POSInterfaceProps> = ({ salesHistory, setSalesHisto
           </div>
         </div>
 
-        {/* Sección Inferior: Ticket (Carrito y Totales Unificados) */}
-        <div className="card" style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', width: '100%' }}>
+        {/* Columna Derecha: Ticket (Carrito y Totales Unificados) */}
+        <div className="card" style={{ flex: '1.2', display: 'flex', flexDirection: 'column', minWidth: '400px', overflow: 'hidden' }}>
           
           {/* Cabecera del Ticket */}
           <div style={{ padding: '16px', borderBottom: '1px solid var(--border-light)', background: 'var(--bg-app)', flexShrink: 0, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
