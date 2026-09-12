@@ -1,8 +1,9 @@
 import React, { useState, useMemo } from 'react';
-import { Search, Plus, Calendar, Filter, Truck, Edit, Trash2, ChevronDown, AlertTriangle } from 'lucide-react';
+import { Search, Plus, Calendar, Filter, Truck, Edit, Trash2, ChevronDown, AlertTriangle, FileSpreadsheet } from 'lucide-react';
 import Fuse from 'fuse.js';
 import ProductFormModal from '../components/inventory/ProductFormModal';
 import ConfirmDeleteModal from '../components/inventory/ConfirmDeleteModal';
+import ImportExcelModal from '../components/inventory/ImportExcelModal';
 import { useAuth } from '../context/AuthContext';
 import { addInventoryItem, updateInventoryItem, deleteInventoryItem } from '../firebase/inventoryService';
 
@@ -22,6 +23,7 @@ const Inventory = ({ inventory, suppliers, showToast }: { inventory: any[], setI
   
   // Estados para el Modal de Formulario
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<any | null>(null);
 
   // Escáner Inteligente (Barcode + IA Fetch)
@@ -91,6 +93,32 @@ const Inventory = ({ inventory, suppliers, showToast }: { inventory: any[], setI
   const handleOpenModal = (product: any | null = null) => {
     setEditingProduct(product);
     setIsModalOpen(true);
+  };
+
+  const handleSaveBatch = async (items: any[]) => {
+    const currentCompanyId = userData?.companyId || 'local';
+    let addedCount = 0;
+    
+    for (const item of items) {
+      if (!item.name || item.price === undefined) continue;
+      
+      const productData = {
+        ...item,
+        companyId: currentCompanyId,
+        dateAdded: new Date().toISOString().split('T')[0]
+      };
+      
+      try {
+        await addInventoryItem(currentCompanyId, productData);
+        addedCount++;
+      } catch (err) {
+        console.error("Error importing item:", err);
+      }
+    }
+    
+    if (showToast) {
+      showToast(`¡Se importaron ${addedCount} productos con éxito!`, 'success');
+    }
   };
 
   const handleSaveProduct = async (productData: any) => {
@@ -222,9 +250,14 @@ const Inventory = ({ inventory, suppliers, showToast }: { inventory: any[], setI
             <h1 style={{ fontSize: '1.75rem', fontWeight: 800 }}>Inventario</h1>
             <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Gestión de productos y existencias</p>
           </div>
-          <button className="btn btn-primary" onClick={() => handleOpenModal()} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <Plus size={18} /> Nuevo Producto
-          </button>
+          <div style={{ display: 'flex', gap: '12px' }}>
+            <button className="btn" onClick={() => setIsImportModalOpen(true)} style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'var(--bg-app)', border: '1px solid var(--border-medium)' }}>
+              <FileSpreadsheet size={18} /> Importar Excel
+            </button>
+            <button className="btn btn-primary" onClick={() => handleOpenModal()} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Plus size={18} /> Nuevo Producto
+            </button>
+          </div>
         </div>
 
         {/* Toolbar de Filtros y Búsqueda */}
@@ -515,6 +548,12 @@ const Inventory = ({ inventory, suppliers, showToast }: { inventory: any[], setI
         onClose={() => setIsDeleteModalOpen(false)}
         onConfirm={handleConfirmDelete}
         itemName={productToDelete?.name || ''}
+      />
+
+      <ImportExcelModal
+        isOpen={isImportModalOpen}
+        onClose={() => setIsImportModalOpen(false)}
+        onSaveBatch={handleSaveBatch}
       />
     </div>
   );

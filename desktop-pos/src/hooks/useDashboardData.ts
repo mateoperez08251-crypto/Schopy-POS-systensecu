@@ -32,8 +32,8 @@ const parseSaleDate = (sale: any): Date => {
 const buildDashboard = (salesList: any[], mechanicsList: any[], filter: TimeFilter) => {
   const filterDate = getFilterDate(filter);
   const filtered = filterDate
-    ? salesList.filter(s => parseSaleDate(s) >= filterDate)
-    : salesList;
+    ? salesList.filter(s => parseSaleDate(s) >= filterDate && s.status !== 'returned')
+    : salesList.filter(s => s.status !== 'returned');
 
   // Mechanic stats
   const mechanicStats: Record<string, { salesCount: number; totalSales: number; name: string }> = {};

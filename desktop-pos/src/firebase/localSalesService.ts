@@ -8,8 +8,8 @@ export const subscribeToSales = (companyId: string, callback: (data: any[]) => v
   
   return onSnapshot(q, (snapshot) => {
     const items = snapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data()
+      ...doc.data(),
+      docId: doc.id
     }));
     callback(items);
   }, (error) => {

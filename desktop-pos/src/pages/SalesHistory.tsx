@@ -132,7 +132,7 @@ const SalesHistory: React.FC<SalesHistoryProps> = ({ salesHistory, inventory }) 
     if (newClient !== null) {
       const newPayment = prompt("Editar Método de Pago (Efectivo, Tarjeta, Transferencia):", sale.paymentMethod);
       if (newPayment !== null) {
-        updateSale(sale.id, { client: newClient || 'Público en General', paymentMethod: newPayment })
+        updateSale(sale.docId || sale.id, { client: newClient || 'Público en General', paymentMethod: newPayment })
           .then(() => alert("Venta actualizada con éxito."))
           .catch(e => alert("Error al actualizar: " + e.message));
       }
@@ -174,7 +174,12 @@ const SalesHistory: React.FC<SalesHistoryProps> = ({ salesHistory, inventory }) 
     
     try {
       for (const id of selectedIds) {
-        await deleteSale(id);
+        const sale = salesHistory.find(s => s.id === id);
+        if (sale) {
+          await deleteSale(sale.docId || sale.id);
+        } else {
+          await deleteSale(id);
+        }
       }
       setSelectedIds([]);
       alert('Venta(s) eliminada(s) exitosamente');
@@ -411,7 +416,7 @@ const SalesHistory: React.FC<SalesHistoryProps> = ({ salesHistory, inventory }) 
                       }
 
                       // 2. Marcar venta como devuelta
-                      await updateSale(returnModalSale.id, { status: 'returned' });
+                      await updateSale(returnModalSale.docId || returnModalSale.id, { status: 'returned' });
 
                       // 3. Agregar al Gestor de Devoluciones en Firestore
                       if (companyId) {

@@ -85,7 +85,7 @@ const RestockModal: React.FC<RestockModalProps> = ({ isOpen, onClose, inventory,
         </div>
         
         {/* Contenido */}
-        <div style={{ padding: '24px', overflowY: 'auto', flex: 1, display: 'flex', flexDirection: 'column', gap: '24px' }}>
+        <div style={{ padding: '24px', overflowY: 'auto', flex: 1, minHeight: 0 }}>
           
           {lowStockGroups.length === 0 ? (
             <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>
@@ -97,7 +97,7 @@ const RestockModal: React.FC<RestockModalProps> = ({ isOpen, onClose, inventory,
             </div>
           ) : (
             lowStockGroups.map((group, index) => (
-              <div key={index} style={{ border: '1px solid var(--border-medium)', borderRadius: '12px', overflow: 'hidden' }}>
+              <div key={index} style={{ border: '1px solid var(--border-medium)', borderRadius: '12px', overflow: 'hidden', marginBottom: index === lowStockGroups.length - 1 ? 0 : '24px' }}>
                 {/* Header del Proveedor */}
                 <div style={{ background: 'var(--bg-app)', padding: '16px 24px', borderBottom: '1px solid var(--border-medium)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>

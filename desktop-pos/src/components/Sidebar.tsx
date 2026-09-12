@@ -1,15 +1,35 @@
 import React, { useState } from 'react';
-import { NavLink } from 'react-router-dom';
+import { createPortal } from 'react-dom';
+import { NavLink, useNavigate } from 'react-router-dom';
 import { 
   LayoutDashboard, ShoppingBag, Package, Calendar as CalendarIcon, 
   BarChart2, ShieldAlert, MoreHorizontal, Settings, HelpCircle, 
-  ArrowUpRight, LogOut, Menu, X, Truck, Users, Wallet, Wrench, Cloud
+  ArrowUpRight, LogOut, Menu, X, Truck, Users, Wallet, Wrench, Cloud,
+  AlertTriangle
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 const Sidebar = ({ onOpenRestockModal }: { onOpenRestockModal?: () => void }) => {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const { logout, userData } = useAuth();
+  const navigate = useNavigate();
+  const [pendingNavigation, setPendingNavigation] = useState<string | null>(null);
+
+  React.useEffect(() => {
+    (window as any).showPosExitWarning = (path: string) => {
+      setPendingNavigation(path);
+    };
+    return () => {
+      delete (window as any).showPosExitWarning;
+    };
+  }, []);
+
+  const handleLinkClick = (e: React.MouseEvent, path: string) => {
+    if ((window as any).posCartActive) {
+      e.preventDefault();
+      setPendingNavigation(path);
+    }
+  };
   
   const navItems = [
     { icon: LayoutDashboard, label: 'Panel de Control', path: '/' },
@@ -118,6 +138,7 @@ const Sidebar = ({ onOpenRestockModal }: { onOpenRestockModal?: () => void }) =>
             ) : (
               <NavLink 
                 to={item.path}
+                onClick={(e) => handleLinkClick(e, item.path)}
                 className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
                 style={{ textDecoration: 'none', justifyContent: isCollapsed ? 'center' : 'flex-start' }}
                 title={isCollapsed ? item.label : undefined}
@@ -146,9 +167,11 @@ const Sidebar = ({ onOpenRestockModal }: { onOpenRestockModal?: () => void }) =>
                     <NavLink
                       key={sub.label}
                       to={sub.path!}
+                      onClick={(e) => handleLinkClick(e, sub.path!)}
                       className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
                       style={{ textDecoration: 'none', padding: '8px 12px', fontSize: '0.85rem' }}
                     >
+                      <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: 'currentColor', marginRight: '8px' }} />
                       {sub.label}
                     </NavLink>
                   )
@@ -167,18 +190,15 @@ const Sidebar = ({ onOpenRestockModal }: { onOpenRestockModal?: () => void }) =>
             </div>
             <NavLink to="/suppliers" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} style={{ textDecoration: 'none' }}>
               <div style={{width:'8px',height:'8px',borderRadius:'50%',border:'2px solid var(--text-muted)', flexShrink: 0}}></div> 
-              Proveedores 
-              <span style={{marginLeft:'auto',fontSize:'0.75rem',color:'var(--text-muted)'}}>122</span>
+              Proveedores
             </NavLink>
             <NavLink to="/customers" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} style={{ textDecoration: 'none' }}>
               <div style={{width:'8px',height:'8px',borderRadius:'50%',border:'2px solid var(--text-muted)', flexShrink: 0}}></div> 
-              Clientes Frecuentes 
-              <span style={{marginLeft:'auto',fontSize:'0.75rem',color:'var(--text-muted)'}}>89</span>
+              Clientes Frecuentes
             </NavLink>
             <NavLink to="/sales-history" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} style={{ textDecoration: 'none' }}>
               <div style={{width:'8px',height:'8px',borderRadius:'50%',border:'2px solid var(--text-muted)', flexShrink: 0}}></div> 
-              Cortes de Caja 
-              <span style={{marginLeft:'auto',fontSize:'0.75rem',color:'var(--text-muted)'}}>32</span>
+              Cortes de Caja
             </NavLink>
           </>
         )}
@@ -224,6 +244,33 @@ const Sidebar = ({ onOpenRestockModal }: { onOpenRestockModal?: () => void }) =>
           </button>
         </div>
       </div>
+      {/* Warning Modal */}
+      {pendingNavigation && createPortal(
+        <div className="checkout-modal-overlay" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 999999, padding: '24px' }}>
+          <div className="modal-content animate-modal" style={{ background: 'var(--surface-color, #fff)', borderRadius: '16px', width: '100%', maxWidth: '400px', textAlign: 'center', padding: '32px', boxShadow: '0 20px 40px rgba(0,0,0,0.3)' }}>
+            <div style={{ width: '64px', height: '64px', borderRadius: '50%', background: 'rgba(239, 68, 68, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 24px auto' }}>
+              <AlertTriangle size={32} color="var(--accent-danger)" />
+            </div>
+            <h2 style={{ fontSize: '1.5rem', fontWeight: 800, marginBottom: '12px', color: 'var(--text-primary)' }}>¿Salir de la Venta?</h2>
+            <p style={{ color: 'var(--text-secondary)', marginBottom: '32px', fontSize: '0.95rem', lineHeight: 1.5 }}>
+              Tienes productos añadidos al carrito. Si sales ahora, <b>perderás todo el progreso</b> de la venta actual.
+            </p>
+            <div style={{ display: 'flex', gap: '12px' }}>
+              <button className="btn btn-outline" style={{ flex: 1, padding: '12px' }} onClick={() => setPendingNavigation(null)}>
+                Quedarme
+              </button>
+              <button className="btn btn-primary" style={{ flex: 1, padding: '12px', background: 'var(--accent-danger)', color: 'white', border: 'none' }} onClick={() => {
+                (window as any).posCartActive = false;
+                navigate(pendingNavigation);
+                setPendingNavigation(null);
+              }}>
+                Sí, salir y borrar
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
     </aside>
   );
 };

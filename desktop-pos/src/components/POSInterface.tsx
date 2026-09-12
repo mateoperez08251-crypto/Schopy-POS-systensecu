@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
-import { Search, ShoppingCart, Trash2, Plus, Minus, CreditCard, Banknote, PauseCircle, PlayCircle, Printer, Tag, X, Calendar, MapPin, StickyNote, FileText, History, Package } from 'lucide-react';
+import { Search, ShoppingCart, Trash2, Plus, Minus, CreditCard, Banknote, PauseCircle, PlayCircle, Printer, Tag, X, Calendar, MapPin, StickyNote, FileText, History, Package, Users, Star, Briefcase, Wrench } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { searchByRnc } from '../utils/rncLookup';
 
@@ -33,6 +33,14 @@ const POSInterface: React.FC<POSInterfaceProps> = ({ salesHistory, setSalesHisto
   const taxRateVal = taxEnabled ? baseTax : 0;
 
   const [cart, setCart] = useState<any[]>([]);
+
+  useEffect(() => {
+    (window as any).posCartActive = cart.length > 0;
+    return () => {
+      (window as any).posCartActive = false;
+    };
+  }, [cart]);
+
   const [posAlert, setPosAlert] = useState<{ message: string, type: 'error' | 'warning' } | null>(null);
   const [heldCarts, setHeldCarts] = useState<any[][]>([]);
   
@@ -65,6 +73,12 @@ const POSInterface: React.FC<POSInterfaceProps> = ({ salesHistory, setSalesHisto
   const [paymentMethod, setPaymentMethod] = useState<'Efectivo' | 'Tarjeta' | 'Transferencia'>('Efectivo');
   const [amountReceived, setAmountReceived] = useState<string>('');
   const [quickCash, setQuickCash] = useState<number | null>(null);
+  
+  // Estado para la entrada manual del producto seleccionado
+  const [pendingItem, setPendingItem] = useState<any | null>(null);
+  const [pendingQuantity, setPendingQuantity] = useState<number>(1);
+  const [pendingPrice, setPendingPrice] = useState<number>(0);
+  
   
   const [clientName, setClientName] = useState('');
   const [clientAddress, setClientAddress] = useState('');
@@ -151,6 +165,35 @@ const POSInterface: React.FC<POSInterfaceProps> = ({ salesHistory, setSalesHisto
       if (exists) return prev.map(item => item.id === product.id ? { ...item, quantity: item.quantity + 1 } : item);
       return [...prev, { ...product, price: getPrice(product, priceLevel), quantity: 1, discount: 0, note: '' }];
     });
+  };
+
+  const selectProductForEntry = (product: any) => {
+    setPendingItem(product);
+    setSearchTerm(product.name);
+    setPendingQuantity(1);
+    setPendingPrice(getPrice(product, priceLevel));
+  };
+
+  const addPendingToCart = () => {
+    if (!pendingItem) return;
+    
+    if (pendingItem.stock <= 5) {
+      setPosAlert({ message: `¡Aviso! Quedan pocas unidades de ${pendingItem.name} (Stock: ${pendingItem.stock})`, type: 'warning' });
+    }
+    
+    setCart(prev => {
+      const exists = prev.find(item => item.id === pendingItem.id);
+      if (exists) {
+        return prev.map(item => item.id === pendingItem.id ? { ...item, quantity: item.quantity + pendingQuantity, price: pendingPrice } : item);
+      }
+      return [...prev, { ...pendingItem, price: pendingPrice, quantity: pendingQuantity, discount: 0, note: '' }];
+    });
+    
+    setPendingItem(null);
+    setSearchTerm('');
+    setPendingQuantity(1);
+    setPendingPrice(0);
+    searchInputRef.current?.focus();
   };
 
   const handleRemove = (id: number) => {
@@ -483,11 +526,25 @@ const POSInterface: React.FC<POSInterfaceProps> = ({ salesHistory, setSalesHisto
           
           {/* Navegación entre Venta Normal y Comprobante */}
           {!isVoucherMode ? (
-            <button className="btn btn-outline" onClick={() => navigate('/voucher-pos')} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <button className="btn btn-outline" onClick={(e) => {
+              if (cart.length > 0) {
+                e.preventDefault();
+                (window as any).showPosExitWarning && (window as any).showPosExitWarning('/voucher-pos');
+              } else {
+                navigate('/voucher-pos');
+              }
+            }} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
               <FileText size={16} /> Ir a Venta con Comprobante
             </button>
           ) : (
-            <button className="btn btn-outline" onClick={() => navigate('/pos')} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <button className="btn btn-outline" onClick={(e) => {
+              if (cart.length > 0) {
+                e.preventDefault();
+                (window as any).showPosExitWarning && (window as any).showPosExitWarning('/pos');
+              } else {
+                navigate('/pos');
+              }
+            }} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
               <ShoppingCart size={16} /> Ir a Venta Normal
             </button>
           )}
@@ -498,7 +555,14 @@ const POSInterface: React.FC<POSInterfaceProps> = ({ salesHistory, setSalesHisto
             <Banknote size={18} /> Abrir Caja
           </button>
 
-          <button className="btn btn-outline" onClick={() => navigate('/sales-history')} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <button className="btn btn-outline" onClick={(e) => {
+            if (cart.length > 0) {
+              e.preventDefault();
+              (window as any).showPosExitWarning && (window as any).showPosExitWarning('/sales-history');
+            } else {
+              navigate('/sales-history');
+            }
+          }} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <History size={18} /> Ir al Historial
           </button>
           
@@ -514,279 +578,350 @@ const POSInterface: React.FC<POSInterfaceProps> = ({ salesHistory, setSalesHisto
         </div>
       </div>
 
-      {/* Contenedor Principal (Dividido en 2 columnas) */}
-      <div style={{ flex: 1, display: 'flex', gap: '24px', minHeight: 0 }}>
+      {/* Contenedor Principal (Layout Facturación / ERP) */}
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '16px', minHeight: 0, paddingRight: '8px', overflowY: 'auto' }}>
         
-        {/* Columna Izquierda: Datos Cliente, Buscador y Productos */}
-        <div style={{ flex: '1', display: 'flex', flexDirection: 'column', gap: '16px', position: 'relative', overflow: 'hidden', minWidth: '320px' }}>
+        {/* SECCIÓN 1: Datos Generales */}
+        <div className="card" style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px', flexShrink: 0 }}>
+          <h3 style={{ fontSize: '1.1rem', fontWeight: 700, margin: '0 0 4px 0', color: 'var(--text-primary)', borderBottom: '1px solid var(--border-light)', paddingBottom: '8px' }}>
+            Datos del Comprobante
+          </h3>
           
-          {/* Datos del Cliente (Arriba del buscador, divididos) */}
-          <div className="card" style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px', flexShrink: 0 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px' }}>
+            <div>
+              <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '4px' }}>Nombre del Cliente (Opcional)</label>
+              <input type="text" placeholder="Público General" value={clientName} onChange={e => setClientName(e.target.value)} style={{ width: '100%', padding: '8px 12px', borderRadius: '4px', border: '1px solid var(--border-medium)', background: 'var(--bg-app)', color: 'var(--text-primary)', outline: 'none' }} />
+            </div>
+            <div style={{ position: 'relative' }}>
+              <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '4px' }}>RNC / Cédula (Opcional)</label>
+              <input 
+                type="text" 
+                placeholder="Opcional" 
+                value={clientRnc} 
+                onChange={e => {
+                  const val = e.target.value;
+                  setClientRnc(val);
+                  const clean = val.replace(/[^0-9]/g, '');
+                  if (clean.length === 9 || clean.length === 11) {
+                    lookupRnc(clean);
+                  }
+                }} 
+                style={{ width: '100%', padding: '8px 12px', borderRadius: '4px', border: `1px solid ${invoiceType === 'credito' && !clientRnc ? 'var(--accent-danger)' : 'var(--border-medium)'}`, background: 'var(--bg-app)', color: 'var(--text-primary)', outline: 'none' }} 
+              />
+              {isSearchingRnc && <div style={{ position: 'absolute', right: '10px', top: '28px', fontSize: '10px', color: 'var(--accent-primary)' }}>Buscando...</div>}
+            </div>
 
             {isVoucherMode && (
-              <div style={{ display: 'flex', gap: '16px' }}>
-                <div style={{ flex: 1 }}>
-                  <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '4px' }}>Nombre del Cliente</label>
-                  <input type="text" placeholder="Público General" value={clientName} onChange={e => setClientName(e.target.value)} style={{ width: '100%', padding: '10px 12px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-medium)', background: 'var(--bg-app)', color: 'var(--text-primary)', outline: 'none' }} />
-                </div>
-                <div style={{ width: '200px', position: 'relative' }}>
-                  <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '4px' }}>RNC / Cédula</label>
-                  <input 
-                    type="text" 
-                    placeholder="Opcional" 
-                    value={clientRnc} 
-                    onChange={e => {
-                      const val = e.target.value;
-                      setClientRnc(val);
-                      const clean = val.replace(/[^0-9]/g, '');
-                      if (clean.length === 9 || clean.length === 11) {
-                        lookupRnc(clean);
-                      }
-                    }} 
-                    style={{ width: '100%', padding: '10px 12px', borderRadius: 'var(--radius-sm)', border: `1px solid ${invoiceType === 'credito' && !clientRnc ? 'var(--accent-danger)' : 'var(--border-medium)'}`, background: 'var(--bg-app)', color: 'var(--text-primary)', outline: 'none' }} 
-                  />
-                  {isSearchingRnc && <div style={{ position: 'absolute', right: '10px', top: '35px', fontSize: '10px', color: 'var(--accent-primary)' }}>Buscando...</div>}
-                </div>
-                <div style={{ width: '200px' }}>
+              <>
+                <div>
                   <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '4px' }}>Fecha de Emisión</label>
-                  <div style={{ position: 'relative' }}>
-                    <Calendar size={14} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
-                    <input type="date" value={saleDate} onChange={e => setSaleDate(e.target.value)} style={{ width: '100%', padding: '10px 10px 10px 36px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-medium)', background: 'var(--bg-app)', color: 'var(--text-primary)', outline: 'none' }} />
-                  </div>
+                  <input type="date" value={saleDate} onChange={e => setSaleDate(e.target.value)} style={{ width: '100%', padding: '8px 12px', borderRadius: '4px', border: '1px solid var(--border-medium)', background: 'var(--bg-app)', color: 'var(--text-primary)', outline: 'none' }} />
                 </div>
-              </div>
-            )}
-            
-            <div style={{ display: 'flex', gap: '16px' }}>
-              {isVoucherMode && (
-                <div style={{ flex: 1 }}>
-                  <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '4px' }}>Tipo de Factura (NCF)</label>
-                  <select value={invoiceType} onChange={e => setInvoiceType(e.target.value as any)} style={{ width: '100%', padding: '10px 12px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-medium)', background: 'var(--bg-app)', color: 'var(--text-primary)', outline: 'none' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '4px' }}>Tipo de Factura</label>
+                  <select value={invoiceType} onChange={e => setInvoiceType(e.target.value as any)} style={{ width: '100%', padding: '8px 12px', borderRadius: '4px', border: '1px solid var(--border-medium)', background: 'var(--bg-app)', color: 'var(--text-primary)', outline: 'none' }}>
                     <option value="ticket">Ticket Normal (Sin NCF)</option>
                     <option value="consumo">Consumo (B02)</option>
                     <option value="credito">Crédito Fiscal (B01)</option>
                   </select>
                 </div>
-              )}
-              <div style={{ flex: 1 }}>
-                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '4px' }}>Nivel de Precio</label>
-                <select value={priceLevel} onChange={e => setPriceLevel(e.target.value as any)} style={{ width: '100%', padding: '10px 12px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-medium)', background: 'var(--bg-app)', color: 'var(--text-primary)', outline: 'none' }}>
-                  <option value="normal">Público General (Normal)</option>
-                  <option value="frequent">Cliente Frecuente</option>
-                  <option value="wholesale">Mayorista</option>
-                </select>
-              </div>
-              <div style={{ flex: 1 }}>
-                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '4px' }}>Mecánico (Opcional)</label>
-                <select value={selectedMechanic} onChange={e => setSelectedMechanic(e.target.value)} style={{ width: '100%', padding: '10px 12px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-medium)', background: 'var(--bg-app)', color: 'var(--text-primary)', outline: 'none' }}>
-                  <option value="">Ninguno</option>
-                  {mechanics.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
-                </select>
-              </div>
-            </div>
-            
-            <div style={{ display: 'flex', gap: '16px' }}>
-              {isVoucherMode && (
-                <div style={{ flex: 1 }}>
-                  <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '4px' }}>Dirección</label>
-                  <div style={{ position: 'relative' }}>
-                    <MapPin size={14} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
-                    <input type="text" placeholder="Opcional..." value={clientAddress} onChange={e => setClientAddress(e.target.value)} style={{ width: '100%', padding: '10px 10px 10px 36px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-medium)', background: 'var(--bg-app)', color: 'var(--text-primary)', outline: 'none' }} />
-                  </div>
-                </div>
-              )}
-              <div style={{ flex: 1 }}>
-                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '4px' }}>Descripción / Nota</label>
-                <div style={{ position: 'relative' }}>
-                  <StickyNote size={14} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
-                  <input type="text" placeholder="Ej. Entregar en puerta trasera..." value={saleNote} onChange={e => setSaleNote(e.target.value)} style={{ width: '100%', padding: '10px 10px 10px 36px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-medium)', background: 'var(--bg-app)', color: 'var(--text-primary)', outline: 'none' }} />
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Buscador Principal */}
-          <div style={{ position: 'relative', zIndex: 10, flexShrink: 0 }}>
-            <Search size={22} style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: 'var(--accent-primary)' }} />
-            <input 
-              ref={searchInputRef}
-              autoFocus
-              type="text" 
-              placeholder="Escanea el código de barras o busca por nombre..." 
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              style={{
-                width: '100%', padding: '16px 16px 16px 52px', borderRadius: 'var(--radius-lg)',
-                border: '2px solid var(--border-medium)', background: 'var(--bg-card)',
-                fontSize: '1.1rem', color: 'var(--text-primary)', outline: 'none',
-                boxShadow: 'var(--shadow-sm)', transition: 'border-color 0.2s'
-              }}
-              onFocus={(e) => e.target.style.borderColor = 'var(--accent-primary)'}
-              onBlur={(e) => e.target.style.borderColor = 'var(--border-medium)'}
-            />
-          </div>
-
-          {/* Grid de Productos Integrado */}
-          <div className="card" style={{ flex: 1, overflowY: 'auto', padding: '16px', background: 'var(--bg-card)', display: 'flex', flexDirection: 'column' }}>
-            {searchTerm.trim() === '' && (
-              <h3 style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '16px', marginTop: 0 }}>
-                🔥 Los más vendidos
-              </h3>
+              </>
             )}
-            
-            {(searchTerm.trim() === '' ? inventory.slice(0, 5) : filteredProducts).length === 0 ? (
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', color: 'var(--text-muted)', flex: 1 }}>
-                <Package size={48} style={{ marginBottom: '16px', opacity: 0.2 }} />
-                <p style={{ fontSize: '1.1rem', fontWeight: 500 }}>No hay productos</p>
-              </div>
-            ) : (
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '12px', alignContent: 'start' }}>
-                {(searchTerm.trim() === '' ? inventory.slice(0, 5) : filteredProducts).map(product => (
-                  <div 
-                    key={product.id} 
-                    onClick={() => { addToCart(product); setSearchTerm(''); searchInputRef.current?.focus(); }} 
-                    style={{ 
-                      padding: '16px', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', 
-                      alignItems: 'center', background: 'var(--bg-app)', borderRadius: '12px',
-                      border: '1px solid var(--border-light)',
-                      borderLeft: `4px solid ${product.color || 'var(--accent-primary)'}`,
+          </div>
+          
+          {/* Opciones Avanzadas (Nivel de Precio y Mecánico) */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginTop: '16px', borderTop: '1px solid var(--border-light)', paddingTop: '16px' }}>
+            {/* Nivel de Precio */}
+            <div>
+              <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '8px' }}>Nivel de Precio</label>
+              <div style={{ display: 'flex', background: 'var(--bg-app)', padding: '4px', borderRadius: '8px', border: '1px solid var(--border-medium)', gap: '4px' }}>
+                {[
+                  { id: 'normal', label: 'Público General', icon: <Users size={16} /> },
+                  { id: 'frequent', label: 'Frecuente', icon: <Star size={16} /> },
+                  { id: 'wholesale', label: 'Mayorista', icon: <Briefcase size={16} /> }
+                ].map(level => (
+                  <button
+                    key={level.id}
+                    onClick={() => setPriceLevel(level.id as any)}
+                    style={{
+                      flex: 1,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '6px',
+                      padding: '8px 4px',
+                      borderRadius: '6px',
+                      border: 'none',
+                      background: priceLevel === level.id ? 'var(--accent-primary)' : 'transparent',
+                      color: priceLevel === level.id ? 'white' : 'var(--text-secondary)',
+                      fontWeight: priceLevel === level.id ? 700 : 500,
+                      cursor: 'pointer',
                       transition: 'all 0.2s ease',
-                      boxShadow: '0 2px 4px rgba(0,0,0,0.02)'
-                    }}
-                    onMouseEnter={e => {
-                      e.currentTarget.style.borderColor = 'var(--accent-primary)';
-                      e.currentTarget.style.transform = 'translateY(-2px)';
-                      e.currentTarget.style.boxShadow = '0 6px 12px rgba(0,0,0,0.05)';
-                    }}
-                    onMouseLeave={e => {
-                      e.currentTarget.style.borderColor = 'var(--border-light)';
-                      e.currentTarget.style.transform = 'none';
-                      e.currentTarget.style.boxShadow = '0 2px 4px rgba(0,0,0,0.02)';
+                      fontSize: '0.85rem'
                     }}
                   >
-                    <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minWidth: 0, paddingRight: '12px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
-                        <span style={{ fontWeight: 700, fontSize: '1.05rem', color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{product.name}</span>
-                      </div>
-                      
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-                        {product.barcode && <span style={{ background: 'var(--bg-card)', padding: '2px 6px', borderRadius: '4px', border: '1px solid var(--border-medium)', color: 'var(--text-secondary)', fontSize: '0.75rem' }}>{product.barcode}</span>}
-                        {product.stock !== undefined && (
-                          <span style={{ display: 'flex', alignItems: 'center', gap: '4px', color: product.stock <= (product.minStock || 5) ? 'var(--accent-danger)' : 'var(--accent-success)' }}>
-                            <Package size={14} /> {product.stock}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                    
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', justifyContent: 'center' }}>
-                      <span style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--accent-primary)' }}>{currency}{product.price.toFixed(2)}</span>
-                    </div>
-                  </div>
+                    {level.icon}
+                    {level.label}
+                  </button>
                 ))}
+              </div>
+            </div>
+
+            {/* Mecánico Asignado */}
+            <div>
+              <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '8px' }}>Mecánico Asignado</label>
+              <div style={{ display: 'flex', gap: '8px', overflowX: 'auto', paddingBottom: '4px', scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+                <button
+                  onClick={() => setSelectedMechanic('')}
+                  style={{
+                    flexShrink: 0,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    padding: '6px 16px',
+                    borderRadius: '20px',
+                    border: selectedMechanic === '' ? '2px solid var(--accent-primary)' : '1px solid var(--border-medium)',
+                    background: selectedMechanic === '' ? 'var(--accent-primary-alpha, rgba(37, 99, 235, 0.1))' : 'var(--bg-app)',
+                    color: selectedMechanic === '' ? 'var(--accent-primary)' : 'var(--text-secondary)',
+                    fontWeight: selectedMechanic === '' ? 700 : 500,
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease',
+                    fontSize: '0.85rem'
+                  }}
+                >
+                  <X size={14} />
+                  Ninguno
+                </button>
+                {mechanics.map(m => (
+                  <button
+                    key={m.id}
+                    onClick={() => setSelectedMechanic(m.id)}
+                    style={{
+                      flexShrink: 0,
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      padding: '6px 16px',
+                      borderRadius: '20px',
+                      border: selectedMechanic === m.id ? '2px solid var(--accent-primary)' : '1px solid var(--border-medium)',
+                      background: selectedMechanic === m.id ? 'var(--accent-primary-alpha, rgba(37, 99, 235, 0.1))' : 'var(--bg-app)',
+                      color: selectedMechanic === m.id ? 'var(--accent-primary)' : 'var(--text-primary)',
+                      fontWeight: selectedMechanic === m.id ? 700 : 500,
+                      cursor: 'pointer',
+                      transition: 'all 0.2s ease',
+                      fontSize: '0.85rem'
+                    }}
+                  >
+                    <Wrench size={14} />
+                    {m.name}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Nota / Dirección */}
+            {isVoucherMode && (
+              <div>
+                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '4px' }}>Nota / Dirección</label>
+                <input type="text" placeholder="Ej. Entregar en puerta trasera..." value={saleNote} onChange={e => setSaleNote(e.target.value)} style={{ width: '100%', padding: '8px 12px', borderRadius: '4px', border: '1px solid var(--border-medium)', background: 'var(--bg-app)', color: 'var(--text-primary)', outline: 'none' }} />
               </div>
             )}
           </div>
         </div>
 
-        {/* Columna Derecha: Ticket (Carrito y Totales Unificados) */}
-        <div className="card" style={{ flex: '1.2', display: 'flex', flexDirection: 'column', minWidth: '400px', overflow: 'hidden' }}>
+        {/* SECCIÓN 2: Entrada de Productos */}
+        <div className="card" style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '16px', flexShrink: 0, position: 'relative', zIndex: 50 }}>
           
-          {/* Cabecera del Ticket */}
-          <div style={{ padding: '16px', borderBottom: '1px solid var(--border-light)', background: 'var(--bg-app)', flexShrink: 0, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <h3 style={{ fontSize: '1.1rem', fontWeight: 700, margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <ShoppingCart size={20} color="var(--accent-primary)" /> Ticket ({cart.length})
-            </h3>
-            {cart.length > 0 && (
-              <button onClick={clearCart} className="btn btn-outline" style={{ padding: '6px 12px', fontSize: '0.8rem', color: 'var(--accent-danger)', borderColor: 'var(--accent-danger)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <Trash2 size={14} /> Vaciar
-              </button>
-            )}
-          </div>
-          
-          {/* Lista de Productos del Ticket */}
-          <div style={{ flex: 1, overflowY: 'auto', padding: '12px', background: 'var(--bg-card)' }}>
-            {cart.length === 0 ? (
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', color: 'var(--text-muted)' }}>
-                <ShoppingCart size={48} style={{ marginBottom: '16px', opacity: 0.2 }} />
-                <p style={{ fontSize: '1.1rem', fontWeight: 500 }}>El ticket está vacío</p>
-              </div>
-            ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                {cart.map(item => (
-                  <div key={item.id} style={{ 
-                    padding: '12px', 
-                    display: 'flex', 
-                    flexDirection: 'column',
-                    gap: '8px',
-                    background: 'var(--bg-app)',
-                    borderRadius: 'var(--radius-md)',
-                    border: '1px solid var(--border-light)'
-                  }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                      <div style={{ minWidth: 0, flex: 1, marginRight: '12px' }}>
-                        <div style={{ fontWeight: 700, fontSize: '0.95rem', marginBottom: '2px', lineHeight: '1.2' }}>{item.name}</div>
-                        <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-                          {currency}{item.price.toFixed(2)} c/u
-                          {item.discount > 0 && <span style={{ color: 'var(--accent-success)', marginLeft: '4px' }}>(-{item.discount}%)</span>}
-                        </div>
-                      </div>
-                      <div style={{ fontWeight: 800, color: 'var(--accent-primary)', fontSize: '1.1rem', textAlign: 'right' }}>
-                        {currency}{((item.price * item.quantity) * (1 - (item.discount || 0)/100)).toFixed(2)}
-                      </div>
-                    </div>
-                    
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', background: 'var(--bg-card)', borderRadius: '20px', border: '1px solid var(--border-medium)', padding: '2px 4px' }}>
-                        <button onClick={() => updateQuantity(item.id, -1)} style={{ background: 'transparent', border: 'none', padding: '4px 8px', cursor: 'pointer', color: 'var(--text-primary)' }}><Minus size={14} /></button>
-                        <span style={{ fontWeight: 700, minWidth: '24px', textAlign: 'center', fontSize: '0.95rem' }}>{item.quantity}</span>
-                        <button onClick={() => updateQuantity(item.id, 1)} style={{ background: 'transparent', border: 'none', padding: '4px 8px', cursor: 'pointer', color: 'var(--text-primary)' }}><Plus size={14} /></button>
-                      </div>
-                      
-                      <div style={{ display: 'flex', gap: '6px' }}>
-                        <button onClick={() => setModifierItem(item)} className="btn btn-outline" style={{ padding: '6px', color: 'var(--text-secondary)' }} title="Descuento / Nota">
-                          <Tag size={14} />
-                        </button>
-                        <button onClick={() => handleRemove(item.id)} className="btn btn-outline" style={{ padding: '6px', color: 'var(--accent-danger)' }} title="Eliminar Producto">
-                          <Trash2 size={14} />
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Resumen de Venta Integrado */}
-          <div style={{ padding: '20px', background: 'var(--bg-app)', borderTop: '2px dashed var(--border-medium)', flexShrink: 0, display: 'flex', flexDirection: 'column', boxShadow: '0 -4px 10px rgba(0,0,0,0.02)' }}>
+          <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
+            <div style={{ position: 'relative', width: '40%' }}>
+              <Search size={20} style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: 'var(--accent-primary)' }} />
+              <input 
+                ref={searchInputRef}
+                autoFocus
+                type="text" 
+                placeholder="Escanea o busca el código / nombre del producto..." 
+                value={searchTerm}
+                onChange={(e) => {
+                  setSearchTerm(e.target.value);
+                  if (pendingItem) setPendingItem(null);
+                }}
+                style={{
+                  width: '100%', padding: '12px 16px 12px 48px', borderRadius: '4px',
+                  border: '2px solid var(--accent-primary)', background: 'var(--bg-app)',
+                  fontSize: '1rem', color: 'var(--text-primary)', outline: 'none'
+                }}
+              />
+            </div>
             
-            <div style={{ marginBottom: '20px' }}>
-              <div className="flex-between" style={{ marginBottom: '12px', color: 'var(--text-secondary)' }}>
-                <span>Subtotal</span>
-                <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{currency}{subtotal.toFixed(2)}</span>
-              </div>
-              <div className="flex-between" style={{ marginBottom: '16px', color: 'var(--text-secondary)' }}>
-                <span>IVA/Tax ({(taxRateVal * 100).toFixed(0)}%)</span>
-                <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{currency}{tax.toFixed(2)}</span>
+            {/* Si hay un item seleccionado, mostrar campos de entrada rápida */}
+            <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flex: 1, opacity: pendingItem ? 1 : 0.4, pointerEvents: pendingItem ? 'auto' : 'none', transition: 'all 0.2s' }}>
+              <div style={{ width: '80px' }}>
+                <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: '4px' }}>Cantidad</label>
+                <input 
+                  type="number" 
+                  min="1" 
+                  value={pendingQuantity}
+                  onChange={e => setPendingQuantity(parseInt(e.target.value) || 1)}
+                  style={{ width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid var(--border-medium)', background: 'var(--bg-app)', textAlign: 'center', fontWeight: 700 }}
+                />
               </div>
               
-              <div className="flex-between" style={{ marginTop: '16px', paddingTop: '16px', borderTop: '1px solid var(--border-light)' }}>
-                <span style={{ fontSize: '1.2rem', fontWeight: 700 }}>Total a Pagar</span>
-                <span style={{ fontSize: '2.2rem', fontWeight: 800, color: 'var(--accent-primary)', lineHeight: 1 }}>{currency}{total.toFixed(2)}</span>
+              <div style={{ width: '120px' }}>
+                <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: '4px' }}>Precio Unit.</label>
+                <input 
+                  type="number" 
+                  min="0"
+                  step="0.01" 
+                  value={pendingPrice}
+                  onChange={e => setPendingPrice(parseFloat(e.target.value) || 0)}
+                  style={{ width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid var(--border-medium)', background: 'var(--bg-app)', textAlign: 'right', fontWeight: 700 }}
+                />
               </div>
+
+              <div style={{ width: '100px' }}>
+                <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: '4px' }}>ITBIS (Ref.)</label>
+                <div style={{ width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid transparent', background: 'transparent', textAlign: 'right', fontWeight: 600, color: 'var(--text-secondary)' }}>
+                  {currency}{(pendingPrice * pendingQuantity * taxRateVal).toFixed(2)}
+                </div>
+              </div>
+
+              <div style={{ width: '120px' }}>
+                <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: '4px' }}>Total</label>
+                <div style={{ width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid transparent', background: 'transparent', textAlign: 'right', fontWeight: 800, color: 'var(--accent-primary)', fontSize: '1.1rem' }}>
+                  {currency}{(pendingPrice * pendingQuantity).toFixed(2)}
+                </div>
+              </div>
+
+              <button 
+                onClick={addPendingToCart}
+                className="btn btn-primary" 
+                style={{ height: '42px', marginTop: '18px', padding: '0 24px', display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 700 }}
+              >
+                <Plus size={18} /> Agregar
+              </button>
+            </div>
+          </div>
+
+          {/* Menú Flotante de Resultados de Búsqueda */}
+          {(searchTerm.trim() !== '' && !pendingItem) && (
+            <div style={{ 
+              position: 'absolute', top: '100%', left: '16px', width: '40%', 
+              background: 'var(--bg-card)', border: '1px solid var(--border-medium)', 
+              borderRadius: '0 0 8px 8px', boxShadow: 'var(--shadow-md)', 
+              maxHeight: '300px', overflowY: 'auto', zIndex: 100 
+            }}>
+              {filteredProducts.length === 0 ? (
+                <div style={{ padding: '16px', textAlign: 'center', color: 'var(--text-muted)' }}>No se encontraron productos</div>
+              ) : (
+                filteredProducts.map(product => (
+                  <div 
+                    key={product.id} 
+                    onClick={() => selectProductForEntry(product)}
+                    style={{ padding: '12px 16px', borderBottom: '1px solid var(--border-light)', display: 'flex', justifyContent: 'space-between', cursor: 'pointer', background: 'var(--bg-card)' }}
+                    onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-app)'}
+                    onMouseLeave={e => e.currentTarget.style.background = 'var(--bg-card)'}
+                  >
+                    <div>
+                      <div style={{ fontWeight: 700 }}>{product.name}</div>
+                      <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Cod: {product.barcode || 'N/A'} | Stock: {product.stock || 0}</div>
+                    </div>
+                    <div style={{ fontWeight: 800, color: 'var(--accent-primary)' }}>
+                      {currency}{product.price.toFixed(2)}
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Contenedor Inferior: Carrito y Totales lado a lado */}
+        <div style={{ display: 'flex', gap: '24px', flexShrink: 0 }}>
+          
+          {/* SECCIÓN 3: Tabla del Carrito */}
+          <div className="card" style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+            
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 16px', borderBottom: '1px solid var(--border-light)', background: 'var(--bg-app)' }}>
+              <h3 style={{ fontSize: '1rem', fontWeight: 700, margin: 0, color: 'var(--text-primary)' }}>Productos y Servicios</h3>
+              {cart.length > 0 && (
+                <button onClick={clearCart} className="btn btn-outline" style={{ padding: '4px 12px', fontSize: '0.8rem', color: 'var(--accent-danger)', borderColor: 'var(--accent-danger)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <Trash2 size={14} /> Vaciar
+                </button>
+              )}
             </div>
 
-            <button 
-              className="btn btn-primary" 
-              onClick={openPaymentModal}
-              disabled={cart.length === 0}
-              style={{ width: '100%', padding: '20px', fontSize: '1.4rem', fontWeight: 800, opacity: cart.length === 0 ? 0.5 : 1, display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '12px' }}
-            >
-              <ShoppingCart size={24} /> COBRAR
+            <div style={{ maxHeight: '400px', overflowY: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+                <thead style={{ background: 'var(--bg-card)', position: 'sticky', top: 0, zIndex: 10 }}>
+                  <tr>
+                    <th style={{ padding: '8px 12px', borderBottom: '2px solid var(--border-medium)', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Sec</th>
+                    <th style={{ padding: '8px 12px', borderBottom: '2px solid var(--border-medium)', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>ID / Cód</th>
+                    <th style={{ padding: '8px 12px', borderBottom: '2px solid var(--border-medium)', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Nombre del Artículo</th>
+                    <th style={{ padding: '8px 12px', borderBottom: '2px solid var(--border-medium)', fontSize: '0.8rem', color: 'var(--text-secondary)', textAlign: 'center' }}>Cantidad</th>
+                    <th style={{ padding: '8px 12px', borderBottom: '2px solid var(--border-medium)', fontSize: '0.8rem', color: 'var(--text-secondary)', textAlign: 'right' }}>Precio Unit.</th>
+                    <th style={{ padding: '8px 12px', borderBottom: '2px solid var(--border-medium)', fontSize: '0.8rem', color: 'var(--text-secondary)', textAlign: 'right' }}>Total</th>
+                    <th style={{ padding: '8px 12px', borderBottom: '2px solid var(--border-medium)', fontSize: '0.8rem', color: 'var(--text-secondary)', textAlign: 'center' }}>Acciones</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {cart.length === 0 ? (
+                    <tr>
+                      <td colSpan={7} style={{ padding: '24px', textAlign: 'center', color: 'var(--text-muted)' }}>
+                        <ShoppingCart size={28} style={{ opacity: 0.2, marginBottom: '8px' }} />
+                        <p style={{ margin: 0, fontSize: '0.9rem' }}>No hay datos disponibles en el carrito.</p>
+                      </td>
+                    </tr>
+                  ) : (
+                    cart.map((item, index) => {
+                      const itemTotal = item.price * item.quantity;
+                      return (
+                        <tr key={item.id} style={{ borderBottom: '1px solid var(--border-light)', background: index % 2 === 0 ? 'transparent' : 'var(--bg-app)' }}>
+                          <td style={{ padding: '6px 12px', fontWeight: 600, color: 'var(--text-secondary)', fontSize: '0.85rem' }}>{index + 1}</td>
+                          <td style={{ padding: '6px 12px', fontSize: '0.85rem' }}>{item.barcode || item.id.substring(0,6)}</td>
+                          <td style={{ padding: '6px 12px', fontWeight: 600, fontSize: '0.85rem' }}>{item.name}</td>
+                          <td style={{ padding: '6px 12px', textAlign: 'center' }}>
+                            <div style={{ display: 'inline-flex', alignItems: 'center', background: 'var(--bg-app)', border: '1px solid var(--border-medium)', borderRadius: '4px' }}>
+                              <button onClick={() => updateQuantity(item.id, -1)} style={{ background: 'transparent', border: 'none', padding: '2px 6px', cursor: 'pointer' }}><Minus size={10} /></button>
+                              <span style={{ fontWeight: 700, minWidth: '24px', textAlign: 'center', fontSize: '0.85rem' }}>{item.quantity}</span>
+                              <button onClick={() => updateQuantity(item.id, 1)} style={{ background: 'transparent', border: 'none', padding: '2px 6px', cursor: 'pointer' }}><Plus size={10} /></button>
+                            </div>
+                          </td>
+                          <td style={{ padding: '6px 12px', textAlign: 'right', fontSize: '0.85rem' }}>{currency}{item.price.toFixed(2)}</td>
+                          <td style={{ padding: '6px 12px', textAlign: 'right', fontWeight: 700, color: 'var(--accent-primary)', fontSize: '0.9rem' }}>{currency}{itemTotal.toFixed(2)}</td>
+                          <td style={{ padding: '6px 12px', textAlign: 'center' }}>
+                            <button onClick={() => handleRemove(item.id)} style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--accent-danger)' }} title="Eliminar"><Trash2 size={16} /></button>
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* SECCIÓN 4: Totales y Cobro (Derecha) */}
+          <div className="card" style={{ width: '380px', padding: '24px', background: 'var(--bg-app)', borderTop: '4px solid var(--accent-primary)', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+            <div>
+              <h3 style={{ fontSize: '1.2rem', fontWeight: 700, margin: '0 0 24px 0', color: 'var(--text-primary)', borderBottom: '1px solid var(--border-light)', paddingBottom: '12px' }}>Resumen</h3>
+              <div className="flex-between" style={{ fontSize: '1.05rem', color: 'var(--text-secondary)', marginBottom: '16px' }}>
+                <span>Subtotal:</span>
+                <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{currency}{subtotal.toFixed(2)}</span>
+              </div>
+              <div className="flex-between" style={{ fontSize: '1.05rem', color: 'var(--text-secondary)', marginBottom: '24px' }}>
+                <span>ITBIS:</span>
+                <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{currency}{tax.toFixed(2)}</span>
+              </div>
+              <div className="flex-between" style={{ paddingTop: '16px', borderTop: '2px dashed var(--border-medium)' }}>
+                <span style={{ fontSize: '1.3rem', fontWeight: 700 }}>Total:</span>
+                <span style={{ fontSize: '2.2rem', fontWeight: 800, color: 'var(--accent-primary)' }}>{currency}{total.toFixed(2)}</span>
+              </div>
+            </div>
+            
+            <button className="btn btn-primary" onClick={openPaymentModal} style={{ width: '100%', marginTop: '32px', padding: '20px', fontSize: '1.4rem', fontWeight: 800, borderRadius: '8px' }} disabled={cart.length === 0}>
+              Procesar Pago
             </button>
           </div>
-          
         </div>
       </div>
 

@@ -43,7 +43,7 @@ const CashRegister: React.FC<CashRegisterProps> = ({ salesHistory = [], showToas
     setLoading(true);
     try {
       const todayStr = new Date().toISOString().split('T')[0];
-      const todaySalesFiltered = salesHistory.filter(sale => sale.date === todayStr);
+      const todaySalesFiltered = salesHistory.filter(sale => sale.date === todayStr && sale.status !== 'returned');
       
       let profit = 0;
       const methods = { Efectivo: 0, Tarjeta: 0, Transferencia: 0 };
