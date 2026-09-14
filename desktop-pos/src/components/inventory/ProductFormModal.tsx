@@ -6,6 +6,7 @@ export interface Product {
   id?: string;
   name: string;
   code: string;
+  referenceCode?: string;
   category: string;
   supplier: string;
   price: number | ''; // Permite vacío
@@ -28,13 +29,17 @@ interface ProductFormModalProps {
   suppliers?: any[];
 }
 
-const CATEGORIES = ['Frenos', 'Suspensión y Dirección', 'Motor', 'Transmisión', 'Eléctrico', 'Líquidos y Lubricantes', 'Accesorios'];
+const DEFAULT_CATEGORIES = ['Frenos', 'Suspensión y Dirección', 'Motor', 'Eléctrico', 'Líquidos y Lubricantes', 'Accesorios', 'Gomas', 'Tubos'];
 
 const ProductFormModal: React.FC<ProductFormModalProps> = ({ isOpen, onClose, onSave, initialData, suppliers = [] }) => {
   const [isCategoryOpen, setIsCategoryOpen] = useState(false);
+  const [categories, setCategories] = useState<string[]>([]);
+  const [newCategory, setNewCategory] = useState('');
+
   const [formData, setFormData] = useState<Product>({
     name: '',
     code: '',
+    referenceCode: '',
     category: 'Frenos',
     supplier: '',
     price: '',
@@ -50,13 +55,25 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({ isOpen, onClose, on
   });
 
   useEffect(() => {
+    const savedCats = localStorage.getItem('inventoryCategories');
+    let loadedCats = DEFAULT_CATEGORIES;
+    if (savedCats) {
+      try {
+        loadedCats = JSON.parse(savedCats);
+      } catch (e) {}
+    } else {
+      localStorage.setItem('inventoryCategories', JSON.stringify(DEFAULT_CATEGORIES));
+    }
+    setCategories(loadedCats);
+
     if (initialData) {
       setFormData(initialData);
     } else {
       setFormData({
         name: '',
         code: '',
-        category: 'Frenos',
+        referenceCode: '',
+        category: loadedCats.length > 0 ? loadedCats[0] : 'Frenos',
         supplier: '',
         price: '',
         priceFrequent: '',
@@ -80,6 +97,7 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({ isOpen, onClose, on
     // Normalizar datos (vacío -> 0)
     const normalizedProduct = {
       ...formData,
+      referenceCode: formData.referenceCode || '',
       price: Number(formData.price) || 0,
       priceFrequent: Number(formData.priceFrequent) || 0,
       priceWholesale: Number(formData.priceWholesale) || 0,
@@ -91,6 +109,30 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({ isOpen, onClose, on
 
     onSave(normalizedProduct);
     onClose();
+  };
+
+  const handleAddCategory = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (newCategory.trim() && !categories.includes(newCategory.trim())) {
+      const updated = [...categories, newCategory.trim()];
+      setCategories(updated);
+      localStorage.setItem('inventoryCategories', JSON.stringify(updated));
+      setFormData({...formData, category: newCategory.trim()});
+      setNewCategory('');
+      setIsCategoryOpen(false);
+    }
+  };
+
+  const handleDeleteCategory = (e: React.MouseEvent, catToRemove: string) => {
+    e.stopPropagation();
+    if (window.confirm(`¿Eliminar la categoría "${catToRemove}"?`)) {
+      const updated = categories.filter(c => c !== catToRemove);
+      setCategories(updated);
+      localStorage.setItem('inventoryCategories', JSON.stringify(updated));
+      if (formData.category === catToRemove) {
+        setFormData({...formData, category: updated[0] || ''});
+      }
+    }
   };
 
   const handleNameChange = (newName: string) => {
@@ -149,8 +191,8 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({ isOpen, onClose, on
               />
             </div>
 
-            {/* Código + Categoría */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+            {/* Código + Código Referencia + Categoría */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 <label style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Código (SKU/Barras)</label>
                 <input 
@@ -159,6 +201,17 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({ isOpen, onClose, on
                   value={formData.code}
                   onChange={e => setFormData({...formData, code: e.target.value})}
                   placeholder="Escanea o escribe"
+                  style={{ background: 'var(--bg-app)', border: '1px solid var(--border-medium)', color: 'var(--text-primary)', padding: '10px 12px', borderRadius: 'var(--radius-md)', outline: 'none' }} 
+                />
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <label style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Cód. Referencia (Opcional)</label>
+                <input 
+                  type="text" 
+                  value={formData.referenceCode || ''}
+                  onChange={e => setFormData({...formData, referenceCode: e.target.value})}
+                  placeholder="Ej. OEM-12345"
                   style={{ background: 'var(--bg-app)', border: '1px solid var(--border-medium)', color: 'var(--text-primary)', padding: '10px 12px', borderRadius: 'var(--radius-md)', outline: 'none' }} 
                 />
               </div>
@@ -181,8 +234,8 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({ isOpen, onClose, on
                     userSelect: 'none'
                   }}
                 >
-                  <span>{formData.category}</span>
-                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ transform: isCategoryOpen ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s' }}>
+                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{formData.category}</span>
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ transform: isCategoryOpen ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s', flexShrink: 0 }}>
                     <path d="m6 9 6 6 6-6"/>
                   </svg>
                 </div>
@@ -201,34 +254,66 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({ isOpen, onClose, on
                     zIndex: 10,
                     overflow: 'hidden'
                   }}>
-                    {CATEGORIES.map(cat => (
-                      <div 
-                        key={cat}
-                        onClick={() => {
-                          setFormData({...formData, category: cat});
-                          setIsCategoryOpen(false);
-                        }}
-                        style={{
-                          padding: '10px 12px',
-                          cursor: 'pointer',
-                          color: formData.category === cat ? 'var(--accent-primary)' : 'var(--text-primary)',
-                          background: formData.category === cat ? 'rgba(99, 102, 241, 0.1)' : 'transparent',
-                          transition: 'background 0.2s'
-                        }}
-                        onMouseEnter={(e) => {
-                          if (formData.category !== cat) {
-                            e.currentTarget.style.background = 'var(--bg-app)';
+                    <div style={{ maxHeight: '200px', overflowY: 'auto' }}>
+                      {categories.map(cat => (
+                        <div 
+                          key={cat}
+                          onClick={() => {
+                            setFormData({...formData, category: cat});
+                            setIsCategoryOpen(false);
+                          }}
+                          style={{
+                            padding: '10px 12px',
+                            cursor: 'pointer',
+                            color: formData.category === cat ? 'var(--accent-primary)' : 'var(--text-primary)',
+                            background: formData.category === cat ? 'rgba(99, 102, 241, 0.1)' : 'transparent',
+                            transition: 'background 0.2s',
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center'
+                          }}
+                          onMouseEnter={(e) => {
+                            if (formData.category !== cat) e.currentTarget.style.background = 'var(--bg-app)';
+                          }}
+                          onMouseLeave={(e) => {
+                            if (formData.category !== cat) e.currentTarget.style.background = 'transparent';
+                          }}
+                        >
+                          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{cat}</span>
+                          <button
+                            type="button"
+                            onClick={(e) => handleDeleteCategory(e, cat)}
+                            style={{ background: 'none', border: 'none', color: 'var(--accent-danger)', cursor: 'pointer', padding: '2px', display: 'flex', alignItems: 'center' }}
+                            title="Eliminar categoría"
+                          >
+                            <X size={14} />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                    <div style={{ padding: '8px', borderTop: '1px solid var(--border-medium)', display: 'flex', gap: '8px' }}>
+                      <input 
+                        type="text" 
+                        value={newCategory}
+                        onChange={(e) => setNewCategory(e.target.value)}
+                        placeholder="Nueva categoría..."
+                        style={{ flex: 1, background: 'var(--bg-app)', border: '1px solid var(--border-medium)', color: 'var(--text-primary)', padding: '6px 8px', borderRadius: '4px', outline: 'none', fontSize: '0.8rem' }}
+                        onClick={(e) => e.stopPropagation()}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            handleAddCategory(e as any);
                           }
                         }}
-                        onMouseLeave={(e) => {
-                          if (formData.category !== cat) {
-                            e.currentTarget.style.background = 'transparent';
-                          }
-                        }}
+                      />
+                      <button 
+                        type="button"
+                        onClick={handleAddCategory}
+                        style={{ background: 'var(--accent-primary)', color: 'white', border: 'none', borderRadius: '4px', padding: '0 12px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600 }}
                       >
-                        {cat}
-                      </div>
-                    ))}
+                        +
+                      </button>
+                    </div>
                   </div>
                 )}
               </div>

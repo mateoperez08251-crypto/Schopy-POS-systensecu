@@ -31,6 +31,7 @@ import Help from './pages/Help';
 // Pantalla de Cierre de Caja
 import CashRegister from './pages/CashRegister';
 import RestockModal from './components/inventory/RestockModal';
+import UpdateModal from './components/UpdateModal';
 
 import { useAuth } from './context/AuthContext';
 import { subscribeToInventory } from './firebase/inventoryService';
@@ -141,6 +142,7 @@ function App() {
           inventory={inventory} 
           suppliers={suppliers} 
         />
+        <UpdateModal />
       </div>
     </Router>
   );

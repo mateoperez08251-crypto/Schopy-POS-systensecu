@@ -1,5 +1,5 @@
 // Generic Local Storage Database Manager
-
+import { triggerAutoBackup } from './autoBackup';
 export const getLocalData = <T>(collectionName: string): T[] => {
   try {
     const data = localStorage.getItem(`schopy_${collectionName}`);
@@ -13,6 +13,8 @@ export const getLocalData = <T>(collectionName: string): T[] => {
 export const saveLocalData = <T>(collectionName: string, data: T[]): void => {
   try {
     localStorage.setItem(`schopy_${collectionName}`, JSON.stringify(data));
+    // Trigger auto backup in the background
+    triggerAutoBackup();
   } catch (error) {
     console.error(`Error saving ${collectionName} to localStorage`, error);
   }

@@ -9,6 +9,15 @@
     "beforeBuildCommand": "npm run build",
     "frontendDist": "../dist"
   },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDk4MTZDQkIzQkI5MzQ1NzIKUldSeVJaTzdzOHNXbUhJSzFrNHZCTWZ4bDVScjhQVHZRWTVGelo5RGFQamMwalNWNVdhWHBHSEIK",
+      "endpoints": [
+        "https://firebasestorage.googleapis.com/v0/b/schopy-pos-technology.appspot.com/o/updater.json?alt=media"
+      ],
+      "dialog": false
+    }
+  },
   "app": {
     "windows": [
       {
