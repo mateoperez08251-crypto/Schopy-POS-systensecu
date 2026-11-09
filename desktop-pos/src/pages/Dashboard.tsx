@@ -13,10 +13,12 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { useDashboardData, TimeFilter } from '../hooks/useDashboardData';
 import { useAuth } from '../context/AuthContext';
+import { useBusiness } from '../context/BusinessContext';
 
 const Dashboard = () => {
   const [timeFilter, setTimeFilter] = useState<TimeFilter>('1 A');
   const { userData, companyId } = useAuth();
+  const { hasFeature } = useBusiness();
   const effectiveCompanyId = userData?.companyId || companyId || 'local';
   const { data, loading } = useDashboardData(effectiveCompanyId, timeFilter);
   const navigate = useNavigate();
@@ -452,7 +454,7 @@ const Dashboard = () => {
             </div>
 
             {/* Mecánico del Mes */}
-            {data.topMechanic && (
+            {hasFeature('mechanics') && data.topMechanic && (
               <div style={{ marginTop: '20px', borderTop: '1px solid var(--border-light)', paddingTop: '16px' }}>
                 <div className="flex-between" style={{ marginBottom: '12px' }}>
                   <h4 style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-secondary)' }}>Mecánico del Mes</h4>

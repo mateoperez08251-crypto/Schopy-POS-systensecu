@@ -35,7 +35,7 @@ const RestockModal: React.FC<RestockModalProps> = ({ isOpen, onClose, inventory,
       }
     });
     
-    return Object.values(groups);
+    return Object.values(groups).sort((a, b) => a.supplier.name.localeCompare(b.supplier.name, 'es', { sensitivity: 'base', numeric: true }));
   }, [inventory, suppliers]);
 
   const handleQuantityChange = (productId: string, val: number) => {

@@ -1,30 +1,67 @@
 import React, { useState, useMemo } from 'react';
-import { Search, Plus, Calendar, Filter, Truck, Edit, Trash2, ChevronDown, AlertTriangle, FileSpreadsheet } from 'lucide-react';
-import Fuse from 'fuse.js';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { Search, Plus, Filter, Truck, Edit, Trash2, ChevronDown, AlertTriangle, FileSpreadsheet, Download, Barcode } from 'lucide-react';
+import * as XLSX from 'xlsx';
+import { smartSearch } from '../utils/searchEngine';
 import ProductFormModal from '../components/inventory/ProductFormModal';
 import ConfirmDeleteModal from '../components/inventory/ConfirmDeleteModal';
 import ImportExcelModal from '../components/inventory/ImportExcelModal';
 import { useAuth } from '../context/AuthContext';
+import { useBusiness } from '../context/BusinessContext';
 import { addInventoryItem, updateInventoryItem, deleteInventoryItem } from '../firebase/inventoryService';
 
+// Pintar miles de filas a la vez traba la entrada a la pantalla; la búsqueda sigue cubriendo todo.
+const ROWS_PER_PAGE = 100;
+
 const Inventory = ({ inventory, suppliers, showToast }: { inventory: any[], setInventory: (inv: any[]) => void, suppliers?: any[], showToast?: (m: string, t?: 'success'|'error'|'info') => void }) => {
-  const { userData } = useAuth();
+  const { userData, companyId, firebaseUser } = useAuth();
+  const { config } = useBusiness();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const currentCompanyId = userData?.companyId || companyId || (firebaseUser as any)?.uid || 'local';
   const [searchTerm, setSearchTerm] = useState('');
   const [supplierTerm, setSupplierTerm] = useState('');
-  const [dateFilter, setDateFilter] = useState('');
-  const [categoryFilter, setCategoryFilter] = useState('');
   const [stockFilter, setStockFilter] = useState(''); // 'low' | 'ok' | ''
   const [expirationFilter, setExpirationFilter] = useState(''); // 'soon' | 'expired' | ''
   const [showFilters, setShowFilters] = useState(false);
 
-  const CATEGORIES = ['Bebidas', 'Snacks', 'Abarrotes', 'Limpieza', 'Electrónica'];
-
-  const activeFilterCount = [categoryFilter, stockFilter, expirationFilter].filter(Boolean).length;
+  const activeFilterCount = [stockFilter, expirationFilter].filter(Boolean).length;
   
   // Estados para el Modal de Formulario
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<any | null>(null);
+  // Estados para el Modal de Confirmación de Eliminación
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [productToDelete, setProductToDelete] = useState<any | null>(null);
+  const [visibleRows, setVisibleRows] = useState(ROWS_PER_PAGE);
+
+  React.useEffect(() => {
+    setVisibleRows(ROWS_PER_PAGE);
+  }, [searchTerm, supplierTerm, stockFilter, expirationFilter]);
+
+  // Producto nuevo pedido desde la pantalla de códigos de barras
+  React.useEffect(() => {
+    const draft = (location.state as { newProductDraft?: any } | null)?.newProductDraft;
+    if (!draft) return;
+    setEditingProduct({
+      name: draft.name,
+      code: draft.code,
+      referenceCode: '',
+      category: config.defaultCategories[0],
+      supplier: '',
+      price: draft.price ?? '',
+      priceFrequent: '',
+      priceWholesale: '',
+      costPrice: '',
+      stock: '',
+      minStock: 5,
+      location: '',
+      unitsPerPackage: 1,
+    });
+    setIsModalOpen(true);
+    navigate(location.pathname, { replace: true, state: null });
+  }, [location.state]);
 
   // Escáner Inteligente (Barcode + IA Fetch)
   React.useEffect(() => {
@@ -32,9 +69,10 @@ const Inventory = ({ inventory, suppliers, showToast }: { inventory: any[], setI
     let timeoutId: any;
 
     const handleKeyDown = async (e: KeyboardEvent) => {
+      if (isModalOpen || isImportModalOpen || isDeleteModalOpen) return;
       // Ignorar si el usuario está escribiendo en un input
       const target = e.target as HTMLElement;
-      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') return;
+      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT') return;
 
       if (e.key === 'Enter' && barcodeBuffer.length > 5) {
         e.preventDefault();
@@ -50,7 +88,7 @@ const Inventory = ({ inventory, suppliers, showToast }: { inventory: any[], setI
         }
 
         // Producto nuevo -> Abrir modal y buscar
-        setEditingProduct({ code: scannedCode, name: 'Buscando con IA...', price: 0, costPrice: 0, stock: 0, minStock: 10, category: 'Abarrotes' });
+        setEditingProduct({ code: scannedCode, name: 'Buscando con IA...', price: 0, costPrice: 0, stock: 0, minStock: 10, category: config.defaultCategories[0] });
         setIsModalOpen(true);
         if (showToast) showToast('Escaneado. Buscando producto en la nube...', 'info');
         
@@ -84,19 +122,18 @@ const Inventory = ({ inventory, suppliers, showToast }: { inventory: any[], setI
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [inventory, showToast]);
-
-  // Estados para el Modal de Confirmación de Eliminación
-  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
-  const [productToDelete, setProductToDelete] = useState<any | null>(null);
+  }, [inventory, showToast, isModalOpen, isImportModalOpen, isDeleteModalOpen]);
 
   const handleOpenModal = (product: any | null = null) => {
     setEditingProduct(product);
     setIsModalOpen(true);
   };
 
+  const openBarcodeGenerator = (product: any | null = null) => {
+    navigate('/barcode-generator', { state: { product } });
+  };
+
   const handleSaveBatch = async (items: any[]) => {
-    const currentCompanyId = userData?.companyId || 'local';
     let addedCount = 0;
     
     for (const item of items) {
@@ -122,31 +159,33 @@ const Inventory = ({ inventory, suppliers, showToast }: { inventory: any[], setI
   };
 
   const handleSaveProduct = async (productData: any) => {
-    const currentCompanyId = userData?.companyId || 'local';
-
-    // Validación de código de barras duplicado
-    if (productData.code && productData.code.trim() !== '') {
-      const duplicate = inventory.find(p => p.code === productData.code && p.id !== productData.id);
+    // Validación de código de barras duplicado con normalización
+    const cleanCode = (productData.code || '').trim();
+    if (cleanCode !== '') {
+      const duplicate = inventory.find(p => (p.code || '').trim() === cleanCode && p.id !== productData.id);
       if (duplicate) {
-        if (showToast) showToast('Ese código de barras ya está asignado al producto: ' + duplicate.name, 'error');
-        return;
+        if (showToast) showToast(`El código de barras "${cleanCode}" ya pertenece a: ${duplicate.name}`, 'error');
+        return false;
       }
     }
 
     try {
       if (productData.id) {
-        // Editar
+        // Editar producto existente
         await updateInventoryItem(productData.id, productData);
         if (showToast) showToast('Producto actualizado correctamente', 'success');
       } else {
-        // Nuevo
+        // Guardar nuevo producto
         await addInventoryItem(currentCompanyId, productData);
         if (showToast) showToast('Producto agregado exitosamente al inventario', 'success');
       }
       setIsModalOpen(false);
-    } catch (error) {
-      console.error(error);
-      if (showToast) showToast('Error al guardar el producto', 'error');
+      return true;
+    } catch (error: any) {
+      console.error('Error al guardar el producto:', error);
+      const errorMsg = error?.message ? `Error: ${error.message}` : 'Error al guardar el producto';
+      if (showToast) showToast(errorMsg, 'error');
+      return false;
     }
   };
 
@@ -169,35 +208,37 @@ const Inventory = ({ inventory, suppliers, showToast }: { inventory: any[], setI
     setProductToDelete(null);
   };
 
+  const handleExportExcel = () => {
+    const dataToExport = filteredInventory.map(p => ({
+      'Código': p.code || '',
+      'Ref': p.referenceCode || '',
+      'Nombre': p.name || '',
+      'Suplidor': p.supplier || '',
+      'Stock': p.stock || 0,
+      'Precio Costo': p.costPrice || 0,
+      'Precio Venta': p.price || 0,
+      'Ubicación': p.location || ''
+    }));
+    const worksheet = XLSX.utils.json_to_sheet(dataToExport);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Inventario");
+    XLSX.writeFile(workbook, `Inventario_${new Date().toISOString().split('T')[0]}.xlsx`);
+  };
+
   const clearAllFilters = () => {
     setSearchTerm('');
     setSupplierTerm('');
-    setDateFilter('');
-    setCategoryFilter('');
     setStockFilter('');
     setExpirationFilter('');
   };
 
-  // Lógica de filtrado con Fuse.js
+  // Lógica de filtrado con búsqueda mejorada
   const filteredInventory = useMemo(() => {
     let result = inventory;
 
     // Filtro por proveedor
     if (supplierTerm) {
       result = result.filter(p => p.supplier.toLowerCase().includes(supplierTerm.toLowerCase()));
-    }
-    
-    // Filtro por fecha
-    if (dateFilter) {
-      result = result.filter(p => {
-        const productDate = p.createdAt ? p.createdAt.split('T')[0] : p.dateAdded;
-        return productDate === dateFilter;
-      });
-    }
-
-    // Filtro por categoría
-    if (categoryFilter) {
-      result = result.filter(p => p.category === categoryFilter);
     }
 
     // Filtro por estado de stock
@@ -226,18 +267,13 @@ const Inventory = ({ inventory, suppliers, showToast }: { inventory: any[], setI
       }
     }
 
-    // Búsqueda inteligente (Fuzzy Search)
+    // Búsqueda inteligente ultra-rápida y tolerante a fallos
     if (searchTerm) {
-      const fuse = new Fuse(result, {
-        keys: ['name', 'code'],
-        threshold: 0.4,
-        distance: 100,
-      });
-      result = fuse.search(searchTerm).map(r => r.item);
+      result = smartSearch(result, searchTerm, ['name', 'code', 'referenceCode', 'supplier', 'category']);
     }
 
     return result;
-  }, [inventory, searchTerm, supplierTerm, dateFilter, categoryFilter, stockFilter, expirationFilter]);
+  }, [inventory, searchTerm, supplierTerm, stockFilter, expirationFilter]);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
@@ -250,9 +286,19 @@ const Inventory = ({ inventory, suppliers, showToast }: { inventory: any[], setI
             <h1 style={{ fontSize: '1.75rem', fontWeight: 800 }}>Inventario</h1>
             <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Gestión de productos y existencias</p>
           </div>
-          <div style={{ display: 'flex', gap: '12px' }}>
+          <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+            <button
+              className="btn btn-outline"
+              onClick={() => openBarcodeGenerator(null)}
+              style={{ display: 'flex', alignItems: 'center', gap: '8px', borderColor: 'var(--accent-primary)', color: 'var(--accent-primary)', fontWeight: 700 }}
+            >
+              <Barcode size={18} /> Crear Código de Barras
+            </button>
             <button className="btn" onClick={() => setIsImportModalOpen(true)} style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'var(--bg-app)', border: '1px solid var(--border-medium)' }}>
-              <FileSpreadsheet size={18} /> Importar Excel
+              <FileSpreadsheet size={18} /> Importar
+            </button>
+            <button className="btn" onClick={handleExportExcel} style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'var(--bg-app)', border: '1px solid var(--border-medium)' }}>
+              <Download size={18} /> Exportar Excel
             </button>
             <button className="btn btn-primary" onClick={() => handleOpenModal()} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <Plus size={18} /> Nuevo Producto
@@ -285,20 +331,6 @@ const Inventory = ({ inventory, suppliers, showToast }: { inventory: any[], setI
               onChange={(e) => setSupplierTerm(e.target.value)}
               style={{ background: 'transparent', border: 'none', color: 'var(--text-primary)', width: '100%', outline: 'none' }}
             />
-          </div>
-
-          {/* Botón Dinámico de Fecha */}
-          <div style={{ position: 'relative', flex: '0 1 auto' }}>
-            <div style={{ display: 'flex', alignItems: 'center', background: 'var(--bg-app)', padding: '10px 16px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-medium)' }}>
-              <Calendar size={18} style={{ color: 'var(--text-secondary)', marginRight: '12px' }} />
-              <input 
-                type="date" 
-                value={dateFilter}
-                onChange={(e) => setDateFilter(e.target.value)}
-                style={{ background: 'transparent', border: 'none', color: 'var(--text-primary)', outline: 'none', cursor: 'pointer' }}
-                title="Filtrar por fecha de ingreso"
-              />
-            </div>
           </div>
 
           {/* Botón Filtros Avanzados */}
@@ -339,33 +371,6 @@ const Inventory = ({ inventory, suppliers, showToast }: { inventory: any[], setI
                   >
                     Limpiar Todo
                   </button>
-                </div>
-
-                {/* Filtro por Categoría */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                  <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Categoría</label>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-                    {CATEGORIES.map(cat => (
-                      <button
-                        key={cat}
-                        onClick={() => setCategoryFilter(categoryFilter === cat ? '' : cat)}
-                        style={{
-                          padding: '5px 10px',
-                          borderRadius: '16px',
-                          fontSize: '0.75rem',
-                          fontWeight: 600,
-                          cursor: 'pointer',
-                          border: '1px solid',
-                          borderColor: categoryFilter === cat ? 'var(--accent-primary)' : 'var(--border-medium)',
-                          background: categoryFilter === cat ? 'rgba(99, 102, 241, 0.1)' : 'transparent',
-                          color: categoryFilter === cat ? 'var(--accent-primary)' : 'var(--text-secondary)',
-                          transition: 'all 0.2s'
-                        }}
-                      >
-                        {cat}
-                      </button>
-                    ))}
-                  </div>
                 </div>
 
                 {/* Filtro por Estado de Stock */}
@@ -458,9 +463,7 @@ const Inventory = ({ inventory, suppliers, showToast }: { inventory: any[], setI
                 <tr>
                   <th style={{ padding: '16px', borderBottom: '1px solid var(--border-medium)', color: 'var(--text-secondary)', fontWeight: 600, fontSize: '0.85rem' }}>Código</th>
                   <th style={{ padding: '16px', borderBottom: '1px solid var(--border-medium)', color: 'var(--text-secondary)', fontWeight: 600, fontSize: '0.85rem' }}>Producto</th>
-                  <th style={{ padding: '16px', borderBottom: '1px solid var(--border-medium)', color: 'var(--text-secondary)', fontWeight: 600, fontSize: '0.85rem' }}>Categoría</th>
                   <th style={{ padding: '16px', borderBottom: '1px solid var(--border-medium)', color: 'var(--text-secondary)', fontWeight: 600, fontSize: '0.85rem' }}>Suplidor</th>
-                  <th style={{ padding: '16px', borderBottom: '1px solid var(--border-medium)', color: 'var(--text-secondary)', fontWeight: 600, fontSize: '0.85rem' }}>Fecha</th>
                   <th style={{ padding: '16px', borderBottom: '1px solid var(--border-medium)', color: 'var(--text-secondary)', fontWeight: 600, fontSize: '0.85rem', textAlign: 'right' }}>Precio</th>
                   <th style={{ padding: '16px', borderBottom: '1px solid var(--border-medium)', color: 'var(--text-secondary)', fontWeight: 600, fontSize: '0.85rem', textAlign: 'center' }}>Margen</th>
                   <th style={{ padding: '16px', borderBottom: '1px solid var(--border-medium)', color: 'var(--text-secondary)', fontWeight: 600, fontSize: '0.85rem', textAlign: 'center' }}>Stock</th>
@@ -470,12 +473,12 @@ const Inventory = ({ inventory, suppliers, showToast }: { inventory: any[], setI
               <tbody>
                 {filteredInventory.length === 0 ? (
                   <tr>
-                    <td colSpan={9} style={{ padding: '40px', textAlign: 'center', color: 'var(--text-secondary)' }}>
+                    <td colSpan={7} style={{ padding: '40px', textAlign: 'center', color: 'var(--text-secondary)' }}>
                       No se encontraron productos con esos filtros.
                     </td>
                   </tr>
                 ) : (
-                  filteredInventory.map(product => {
+                  filteredInventory.slice(0, visibleRows).map(product => {
                     const margin = product.costPrice > 0 ? ((product.price - product.costPrice) / product.price) * 100 : 0;
                     const marginColor = margin >= 30 ? '#10B981' : margin >= 15 ? '#f59e0b' : 'var(--accent-danger)';
                     const isLowStock = product.stock < (product.minStock || 20);
@@ -483,13 +486,7 @@ const Inventory = ({ inventory, suppliers, showToast }: { inventory: any[], setI
                     <tr key={product.id} style={{ borderBottom: '1px solid var(--border-light)', transition: 'background 0.2s' }} className="table-row-hover">
                       <td style={{ padding: '16px', fontSize: '0.9rem', color: 'var(--text-secondary)' }}>{product.code}</td>
                       <td style={{ padding: '16px', fontWeight: 600 }}>{product.name}</td>
-                      <td style={{ padding: '16px' }}>
-                        <span style={{ padding: '4px 8px', borderRadius: '12px', background: 'var(--bg-app)', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-                          {product.category}
-                        </span>
-                      </td>
                       <td style={{ padding: '16px', fontSize: '0.9rem' }}>{product.supplier}</td>
-                      <td style={{ padding: '16px', fontSize: '0.9rem', color: 'var(--text-secondary)' }}>{product.createdAt ? product.createdAt.split('T')[0] : (product.dateAdded || 'N/A')}</td>
                       <td style={{ padding: '16px', fontWeight: 700, color: 'var(--accent-primary)', textAlign: 'right' }}>${product.price.toFixed(2)}</td>
                       <td style={{ padding: '16px', textAlign: 'center' }}>
                         <span style={{ 
@@ -517,6 +514,9 @@ const Inventory = ({ inventory, suppliers, showToast }: { inventory: any[], setI
                       </td>
                       <td style={{ padding: '16px', textAlign: 'right' }}>
                         <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+                          <button className="btn btn-outline" onClick={() => openBarcodeGenerator(product)} style={{ padding: '6px', color: 'var(--accent-primary)' }} title="Crear / Imprimir Código de Barras">
+                            <Barcode size={16} />
+                          </button>
                           <button className="btn btn-outline" onClick={() => handleOpenModal(product)} style={{ padding: '6px', color: 'var(--text-primary)' }} title="Editar">
                             <Edit size={16} />
                           </button>
@@ -531,6 +531,13 @@ const Inventory = ({ inventory, suppliers, showToast }: { inventory: any[], setI
                 )}
               </tbody>
             </table>
+            {filteredInventory.length > visibleRows && (
+              <div style={{ padding: '16px', textAlign: 'center', borderTop: '1px solid var(--border-light)' }}>
+                <button className="btn btn-outline" onClick={() => setVisibleRows(rows => rows + ROWS_PER_PAGE)}>
+                  Mostrar más ({filteredInventory.length - visibleRows} restantes)
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -541,6 +548,8 @@ const Inventory = ({ inventory, suppliers, showToast }: { inventory: any[], setI
         onSave={handleSaveProduct}
         initialData={editingProduct}
         suppliers={suppliers}
+        existingCodes={inventory.map(p => p.code || '')}
+        onOpenBarcodeModal={openBarcodeGenerator}
       />
 
       <ConfirmDeleteModal 

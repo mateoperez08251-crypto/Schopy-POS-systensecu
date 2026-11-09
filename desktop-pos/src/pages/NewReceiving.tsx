@@ -6,6 +6,7 @@ import autoTable from 'jspdf-autotable';
 import { useAuth } from '../context/AuthContext';
 import { addReceivingLocal } from '../firebase/localReceivingsService';
 import { updateInventoryItem } from '../firebase/inventoryService';
+import { filterSuppliers } from '../utils/suppliers';
 
 const NewReceiving = ({ inventory, setInventory, suppliers, showToast }: { inventory: any[], setInventory: (inv: any[]) => void, suppliers: any[], showToast?: (m: string, t?: 'success'|'error') => void }) => {
   const navigate = useNavigate();
@@ -39,7 +40,7 @@ const NewReceiving = ({ inventory, setInventory, suppliers, showToast }: { inven
   }, [location.state]);
 
   // Derived state
-  const filteredSuppliers = suppliers.filter(s => s.name.toLowerCase().includes(supplierSearch.toLowerCase()) || (s.rnc && s.rnc.includes(supplierSearch)));
+  const filteredSuppliers = filterSuppliers(suppliers, supplierSearch);
   const filteredProducts = inventory.filter(p => p.name.toLowerCase().includes(productSearch.toLowerCase()) || (p.code && p.code.toLowerCase().includes(productSearch.toLowerCase())));
 
   const handleSelectSupplier = (supplier: any) => {
@@ -280,11 +281,11 @@ const NewReceiving = ({ inventory, setInventory, suppliers, showToast }: { inven
               />
             </div>
             
-            {showSupplierDropdown && supplierSearch && (
+            {showSupplierDropdown && (
               <div style={{
                 position: 'absolute', top: '100%', left: 0, right: 0, marginTop: '8px',
                 background: 'var(--bg-card)', borderRadius: '12px', border: '1px solid var(--border-light)',
-                boxShadow: '0 10px 30px rgba(0,0,0,0.2)', zIndex: 10, overflow: 'hidden'
+                boxShadow: '0 10px 30px rgba(0,0,0,0.2)', zIndex: 10, maxHeight: '320px', overflowY: 'auto'
               }}>
                 {filteredSuppliers.length > 0 ? (
                   filteredSuppliers.map(s => (
@@ -294,7 +295,7 @@ const NewReceiving = ({ inventory, setInventory, suppliers, showToast }: { inven
                     }} className="hover:bg-[var(--bg-app)]">
                       <div>
                         <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{s.name}</div>
-                        <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>RNC: {s.rnc}</div>
+                        <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>RNC: {s.rnc || 'N/A'}</div>
                       </div>
                     </div>
                   ))

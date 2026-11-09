@@ -1,14 +1,19 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { Search, Clock, Receipt, Printer, Calendar as CalendarIcon, Download, Edit, ShoppingCart, RotateCcw, Trash2 } from 'lucide-react';
+import { Search, Clock, Receipt, Printer, Calendar as CalendarIcon, Download, Edit, ShoppingCart, RotateCcw, Trash2, CheckCircle } from 'lucide-react';
+import * as XLSX from 'xlsx';
 import { updateSale, deleteSale } from '../firebase/localSalesService';
 import { updateInventoryItem } from '../firebase/inventoryService';
 import { addReturn } from '../firebase/returnsService';
+import { logAuditEvent } from '../firebase/auditService';
+import EditSaleModal from '../components/sales/EditSaleModal';
+import { getInvoiceTotal, getStockChanges, getTaxFactor } from '../utils/invoice';
 
 interface SalesHistoryProps {
   salesHistory: any[];
   inventory: any[];
+  showToast?: (message: string, type?: 'success' | 'error' | 'info') => void;
 }
 
 const AnimatedCheckbox = ({ checked, onChange }: { checked: boolean, onChange: () => void }) => (
@@ -22,7 +27,7 @@ const AnimatedCheckbox = ({ checked, onChange }: { checked: boolean, onChange: (
   </div>
 );
 
-const SalesHistory: React.FC<SalesHistoryProps> = ({ salesHistory, inventory }) => {
+const SalesHistory: React.FC<SalesHistoryProps> = ({ salesHistory, inventory, showToast }) => {
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState('');
   const [dateFrom, setDateFrom] = useState('');
@@ -30,9 +35,12 @@ const SalesHistory: React.FC<SalesHistoryProps> = ({ salesHistory, inventory }) 
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [returnModalSale, setReturnModalSale] = useState<any | null>(null);
   const [isReturning, setIsReturning] = useState(false);
-  const { userData, companyId } = useAuth();
+  const [editingSale, setEditingSale] = useState<any | null>(null);
+  const [returnUnits, setReturnUnits] = useState<Record<string, number>>({});
+  const { userData, companyId, currentUser } = useAuth();
   const currency = userData?.currency || '$';
   const anyUserData = userData as any;
+  const [exportToast, setExportToast] = useState(false);
 
   const handlePrintTicket = (sale: any) => {
     if (!sale) return;
@@ -124,19 +132,118 @@ const SalesHistory: React.FC<SalesHistoryProps> = ({ salesHistory, inventory }) 
       }
     }, 1000);
   };
+
+  const handleExportExcel = () => {
+    if (filteredSales.length === 0) {
+      if (showToast) showToast('No hay ventas para exportar', 'error');
+      return;
+    }
+    const dataToExport = filteredSales.map(sale => ({
+      'ID Ticket': sale.id || '',
+      'Fecha': sale.date || (sale.createdAt ? sale.createdAt.split('T')[0] : ''),
+      'Hora': sale.time || '',
+      'Cliente': sale.client || 'Público en General',
+      'RNC/Cédula': sale.clientRnc || '',
+      'NCF': sale.ncf || '',
+      'Tipo Factura': sale.invoiceType === 'credito' ? 'Crédito Fiscal' : sale.invoiceType === 'consumo' ? 'Consumo' : 'Ticket',
+      'Método de Pago': sale.paymentMethod || '',
+      'Total': sale.total || 0,
+      'Productos': (sale.items || []).map((i: any) => `${i.name} x${i.quantity}`).join(', '),
+      'Estado': sale.status === 'returned' ? 'Devuelta' : 'Completada'
+    }));
+    const worksheet = XLSX.utils.json_to_sheet(dataToExport);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Ventas');
+    XLSX.writeFile(workbook, `Historial_Ventas_${new Date().toISOString().split('T')[0]}.xlsx`);
+    
+    // Mostrar notificación de descarga exitosa
+    if (showToast) {
+      showToast(`¡Archivo Excel descargado exitosamente! (${filteredSales.length} ventas)`, 'success');
+    } else {
+      setExportToast(true);
+      setTimeout(() => setExportToast(false), 3500);
+    }
+  };
   
   const handleEditSale = (sale: any) => {
-    // Si el usuario quiere editar los artículos, deberíamos redirigir a POS o tener un modal complejo.
-    // Como solución rápida para "editar factura", permitiremos editar Cliente y Método de Pago.
-    const newClient = prompt("Editar Cliente (Dejar vacío para Público en General):", sale.client || "");
-    if (newClient !== null) {
-      const newPayment = prompt("Editar Método de Pago (Efectivo, Tarjeta, Transferencia):", sale.paymentMethod);
-      if (newPayment !== null) {
-        updateSale(sale.docId || sale.id, { client: newClient || 'Público en General', paymentMethod: newPayment })
-          .then(() => alert("Venta actualizada con éxito."))
-          .catch(e => alert("Error al actualizar: " + e.message));
-      }
+    // Una venta devuelta ya repuso su stock; editarla lo ajustaría por segunda vez.
+    if (sale.status === 'returned') {
+      if (showToast) showToast('Esta venta ya fue devuelta y no se puede editar', 'error');
+      return;
     }
+    setEditingSale(sale);
+  };
+
+  const handleSaveEditedSale = async (sale: any, updates: Record<string, any>) => {
+    const userName = userData?.name || 'Usuario Local';
+
+    await updateSale(sale.docId || sale.id, {
+      ...updates,
+      editedAt: new Date().toISOString(),
+      editedBy: userName
+    });
+
+    // La factura ya quedó guardada: un fallo aquí no debe invitar a guardarla (y ajustar el stock) otra vez.
+    try {
+      const stockChanges = getStockChanges(sale.items || [], updates.items);
+      for (const [productId, units] of Object.entries(stockChanges)) {
+        const invItem = inventory.find((i: any) => i.id === productId);
+        if (invItem) {
+          await updateInventoryItem(productId, { stock: Math.max(0, (invItem.stock || 0) + units) });
+        }
+      }
+      if (showToast) showToast('Factura actualizada', 'success');
+    } catch (e) {
+      console.error('Error ajustando stock de la factura editada:', e);
+      if (showToast) showToast('La factura se guardó, pero revisa el stock de sus artículos', 'error');
+    }
+
+    const removedNames = (sale.items || [])
+      .filter((item: any) => !updates.items.some((other: any) => other.id === item.id))
+      .map((item: any) => item.name);
+    logAuditEvent(
+      userData?.companyId || companyId || 'local',
+      currentUser?.uid || currentUser?.id || 'local',
+      userName,
+      'Factura Editada',
+      `Factura #${sale.id}: total de ${currency}${(sale.total || 0).toFixed(2)} a ${currency}${updates.total.toFixed(2)}.${removedNames.length > 0 ? ` Artículos eliminados: ${removedNames.join(', ')}.` : ''}`,
+      'warning'
+    );
+
+    setEditingSale(null);
+  };
+
+  // Una factura no queda vacía: devolverlo todo es "Devolver Toda la Venta".
+  const getMaxReturnUnits = (sale: any, item: any) => (sale.items.length > 1 ? item.quantity : item.quantity - 1);
+
+  // Devuelve unidades de un artículo: su stock vuelve al inventario y el resto de la factura queda igual.
+  const handleReturnItem = async (item: any) => {
+    const sale = returnModalSale;
+    const units = Math.min(returnUnits[item.id] || 1, getMaxReturnUnits(sale, item));
+    const remaining = sale.items
+      .map((other: any) => (other.id === item.id ? { ...other, quantity: other.quantity - units } : other))
+      .filter((other: any) => other.quantity > 0);
+    const total = getInvoiceTotal(remaining, getTaxFactor(sale.items, sale.total || 0));
+
+    setIsReturning(true);
+    try {
+      await handleSaveEditedSale(sale, { items: remaining, total });
+      if (companyId) {
+        const invItem = inventory.find((i: any) => i.id === item.id);
+        await addReturn(companyId, {
+          productId: item.id,
+          productName: item.name,
+          supplier: invItem?.supplier || 'No especificado',
+          note: `Devolución parcial de Venta #${sale.id} (${units} unidad(es))`
+        });
+      }
+      setReturnModalSale({ ...sale, items: remaining, total });
+      setReturnUnits(prev => ({ ...prev, [item.id]: 1 }));
+    } catch (e) {
+      console.error('Error devolviendo artículo:', e);
+      if (showToast) showToast('No se pudo devolver el artículo', 'error');
+    }
+    setIsReturning(false);
   };
   
   const filteredSales = salesHistory.filter(sale => {
@@ -206,8 +313,8 @@ const SalesHistory: React.FC<SalesHistoryProps> = ({ salesHistory, inventory }) 
               <Printer size={18} /> Imprimir ({selectedIds.length})
             </button>
           )}
-          <button className="btn btn-outline" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <Download size={18} /> Exportar
+          <button className="btn btn-outline" onClick={handleExportExcel} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <Download size={18} /> Exportar Excel
           </button>
           {selectedIds.length > 0 && userData?.role === 'admin' && (
             <button onClick={handleDeleteSales} className="btn btn-outline" style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--accent-danger)', borderColor: 'var(--accent-danger)' }}>
@@ -329,7 +436,7 @@ const SalesHistory: React.FC<SalesHistoryProps> = ({ salesHistory, inventory }) 
                         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '4px' }}>
                           <h4 style={{ fontSize: '1.1rem', fontWeight: 700, margin: 0 }}>{sale.id}</h4>
                           <span style={{ fontSize: '0.75rem', fontWeight: 600, color: sale.status === 'returned' ? 'var(--accent-danger)' : 'var(--accent-primary)', background: sale.status === 'returned' ? 'rgba(239,68,68,0.1)' : 'rgba(59,130,246,0.1)', padding: '2px 8px', borderRadius: '12px' }}>
-                            {sale.time} {sale.status === 'returned' && '• DEVUELTA'}
+                            {sale.time} {sale.status === 'returned' && '• DEVUELTA'} {sale.editedAt && '• EDITADA'}
                           </span>
                         </div>
                         <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', margin: 0 }}>
@@ -350,8 +457,8 @@ const SalesHistory: React.FC<SalesHistoryProps> = ({ salesHistory, inventory }) 
                         <button onClick={(e) => { e.stopPropagation(); handlePrintTicket(sale); }} className="btn btn-outline" title="Re-imprimir Ticket" style={{ padding: '10px' }}>
                           <Printer size={18} />
                         </button>
-                        <button onClick={(e) => { e.stopPropagation(); handleEditSale(sale); }} className="btn btn-outline" title="Editar Venta" style={{ padding: '10px', color: 'var(--accent-warning)', borderColor: 'var(--border-light)' }}>
-                          <Edit size={18} />
+                        <button onClick={(e) => { e.stopPropagation(); handleEditSale(sale); }} className="btn btn-outline" title="Editar factura: cambiar, quitar o añadir artículos" style={{ padding: '10px 14px', display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 600 }}>
+                          <Edit size={18} /> Editar
                         </button>
                         <button onClick={(e) => { e.stopPropagation(); setReturnModalSale(sale); }} className="btn btn-outline" title="Devolver Venta" style={{ padding: '10px', color: 'var(--accent-danger)', borderColor: 'var(--border-light)' }}>
                           <RotateCcw size={18} />
@@ -370,7 +477,7 @@ const SalesHistory: React.FC<SalesHistoryProps> = ({ salesHistory, inventory }) 
       {/* Modal de Devolución */}
       {returnModalSale && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-          <div className="card" style={{ width: '90%', maxWidth: '500px', padding: '24px', position: 'relative' }}>
+          <div className="card" style={{ width: '90%', maxWidth: '620px', padding: '24px', position: 'relative' }}>
             <h3 style={{ fontSize: '1.2rem', fontWeight: 700, marginBottom: '16px' }}>Devolver Venta #{returnModalSale.id}</h3>
             
             {returnModalSale.status === 'returned' ? (
@@ -380,7 +487,7 @@ const SalesHistory: React.FC<SalesHistoryProps> = ({ salesHistory, inventory }) 
             ) : (
               <>
                 <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', marginBottom: '16px' }}>
-                  Al devolver la venta, el stock de los productos regresará al inventario y se agregarán notas al Gestor de Devoluciones.
+                  Devuelve un artículo específico o toda la venta. El stock regresará al inventario y se agregarán notas al Gestor de Devoluciones.
                 </p>
                 <div style={{ maxHeight: '200px', overflowY: 'auto', marginBottom: '24px', border: '1px solid var(--border-light)', borderRadius: '8px' }}>
                   {returnModalSale.items.map((item: any, idx: number) => (
@@ -389,8 +496,30 @@ const SalesHistory: React.FC<SalesHistoryProps> = ({ salesHistory, inventory }) 
                         <div style={{ fontWeight: 600, fontSize: '0.9rem' }}>{item.name}</div>
                         <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Cant: {item.quantity}</div>
                       </div>
-                      <div style={{ fontWeight: 700 }}>
-                        ${((item.price * item.quantity) * (1 - (item.discount || 0)/100)).toFixed(2)}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                        <div style={{ fontWeight: 700 }}>
+                          ${((item.price * item.quantity) * (1 - (item.discount || 0)/100)).toFixed(2)}
+                        </div>
+                        {getMaxReturnUnits(returnModalSale, item) > 0 && (
+                          <>
+                            <input
+                              type="number"
+                              min="1"
+                              max={getMaxReturnUnits(returnModalSale, item)}
+                              aria-label={`Unidades de ${item.name} a devolver`}
+                              value={Math.min(returnUnits[item.id] || 1, getMaxReturnUnits(returnModalSale, item))}
+                              onChange={e => {
+                                const max = getMaxReturnUnits(returnModalSale, item);
+                                setReturnUnits(prev => ({ ...prev, [item.id]: Math.min(max, Math.max(1, parseInt(e.target.value) || 1)) }));
+                              }}
+                              onWheel={e => e.currentTarget.blur()}
+                              style={{ width: '60px', padding: '6px', textAlign: 'center', fontWeight: 700, borderRadius: '8px', border: '1px solid var(--border-medium)', background: 'var(--bg-app)', color: 'var(--text-primary)', outline: 'none' }}
+                            />
+                            <button onClick={() => handleReturnItem(item)} disabled={isReturning} className="btn btn-outline" style={{ padding: '6px 10px', color: 'var(--accent-danger)' }}>
+                              Devolver
+                            </button>
+                          </>
+                        )}
                       </div>
                     </div>
                   ))}
@@ -400,6 +529,11 @@ const SalesHistory: React.FC<SalesHistoryProps> = ({ salesHistory, inventory }) 
 
             <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
               <button onClick={() => setReturnModalSale(null)} className="btn btn-outline">Cerrar</button>
+              {returnModalSale.status !== 'returned' && (
+                <button onClick={() => { const sale = returnModalSale; setReturnModalSale(null); handleEditSale(sale); }} disabled={isReturning} className="btn btn-outline">
+                  Editar Factura
+                </button>
+              )}
               {returnModalSale.status !== 'returned' && (
                 <button 
                   disabled={isReturning}
@@ -445,6 +579,30 @@ const SalesHistory: React.FC<SalesHistoryProps> = ({ salesHistory, inventory }) 
               )}
             </div>
           </div>
+        </div>
+      )}
+
+      {editingSale && (
+        <EditSaleModal
+          sale={editingSale}
+          inventory={inventory}
+          currency={currency}
+          onClose={() => setEditingSale(null)}
+          onSave={updates => handleSaveEditedSale(editingSale, updates)}
+        />
+      )}
+
+      {/* Toast de exportación exitosa (fallback si no hay showToast prop) */}
+      {exportToast && (
+        <div style={{
+          position: 'fixed', bottom: '32px', left: '50%', transform: 'translateX(-50%)',
+          background: '#10B981', color: 'white', padding: '14px 28px', borderRadius: '12px',
+          fontWeight: 600, boxShadow: '0 10px 25px rgba(0,0,0,0.2)', zIndex: 10000,
+          animation: 'toastSlideUp 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards',
+          display: 'flex', alignItems: 'center', gap: '10px', fontSize: '0.95rem'
+        }}>
+          <CheckCircle size={20} />
+          ¡Archivo Excel descargado exitosamente!
         </div>
       )}
     </div>

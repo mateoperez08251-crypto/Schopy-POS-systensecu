@@ -3,6 +3,7 @@ import { Search, Plus, Shield, User, Trash2, Wrench } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { subscribeToStaffLocal, addStaffLocal, deleteStaffLocal } from '../firebase/localStaffService';
 import { subscribeToMechanics, addMechanic, deleteMechanic } from '../firebase/localMechanicsService';
+import { useBusiness } from '../context/BusinessContext';
 
 const StaffFormModal = ({ isOpen, onClose, onSubmit }: { isOpen: boolean, onClose: () => void, onSubmit: (data: any) => Promise<void> }) => {
   const [formData, setFormData] = useState({ name: '', pin: '', role: 'cashier' });
@@ -159,6 +160,7 @@ const Staff = ({ showToast }: { showToast?: (m: string, t?: 'success'|'error'|'i
   const [searchTerm, setSearchTerm] = useState('');
   const [isStaffModalOpen, setIsStaffModalOpen] = useState(false);
   const [isMechanicModalOpen, setIsMechanicModalOpen] = useState(false);
+  const { hasFeature } = useBusiness();
   
   const [staffList, setStaffList] = useState<any[]>([]);
   const [mechanicsList, setMechanicsList] = useState<any[]>([]);
@@ -226,7 +228,7 @@ const Staff = ({ showToast }: { showToast?: (m: string, t?: 'success'|'error'|'i
           <h1 style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '12px' }}>
             <Shield size={28} color="var(--accent-primary)" /> Gestión de Personal
           </h1>
-          <p style={{ color: 'var(--text-secondary)', marginTop: '4px' }}>Administra usuarios locales y mecánicos</p>
+          <p style={{ color: 'var(--text-secondary)', marginTop: '4px' }}>Administra usuarios locales{hasFeature('mechanics') && ' y mecánicos'}</p>
         </div>
         {userData?.role === 'admin' && (
           <button 
@@ -258,6 +260,7 @@ const Staff = ({ showToast }: { showToast?: (m: string, t?: 'success'|'error'|'i
         >
           <User size={18} /> Cajeros / Admins
         </button>
+        {hasFeature('mechanics') && (
         <button 
           onClick={() => setActiveTab('mechanics')}
           style={{ 
@@ -276,6 +279,7 @@ const Staff = ({ showToast }: { showToast?: (m: string, t?: 'success'|'error'|'i
         >
           <Wrench size={18} /> Mecánicos
         </button>
+        )}
       </div>
 
       <div style={{ marginBottom: '24px', display: 'flex', gap: '16px', alignItems: 'center' }}>

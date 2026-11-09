@@ -2,6 +2,7 @@ import React, { useState, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { X, Upload, Download, Save, Trash2, FileSpreadsheet } from 'lucide-react';
 import * as XLSX from 'xlsx';
+import { useBusiness } from '../../context/BusinessContext';
 
 interface ImportExcelModalProps {
   isOpen: boolean;
@@ -16,12 +17,14 @@ const ImportExcelModal: React.FC<ImportExcelModalProps> = ({ isOpen, onClose, on
 
   if (!isOpen) return null;
 
+  const { config } = useBusiness();
+
   const handleDownloadTemplate = () => {
     const template = [
       {
         "Código": "SKU-001",
         "Nombre": "Producto de Ejemplo",
-        "Categoría": "Frenos",
+        "Categoría": config.defaultCategories[0],
         "Proveedor": "Distribuidora Principal",
         "Costo": 150,
         "Precio_Venta": 300,

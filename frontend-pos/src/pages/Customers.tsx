@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Search, Plus, Filter, MoreVertical, User, Mail, Phone, MapPin, Users, FileText } from 'lucide-react';
+import { smartSearch } from '../utils/searchEngine';
 import CustomerFormModal from '../components/customers/CustomerFormModal';
 import { useAuth } from '../context/AuthContext';
 import { addCustomer, deleteCustomer } from '../firebase/customersService';
@@ -47,12 +48,16 @@ const Customers = ({ customers, setCustomers, showToast }: { customers: any[], s
     }
   };
 
-  const filteredCustomers = customers.filter(c => {
-    const matchesSearch = c.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                          c.documentId.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesFilter = statusFilter === 'Todos' || c.status === statusFilter;
-    return matchesSearch && matchesFilter;
-  });
+  const filteredCustomers = useMemo(() => {
+    let result = customers;
+    if (statusFilter !== 'Todos') {
+      result = result.filter(c => c.status === statusFilter);
+    }
+    if (searchTerm) {
+      result = smartSearch(result, searchTerm, ['name', 'documentId', 'phone', 'email']);
+    }
+    return result;
+  }, [customers, searchTerm, statusFilter]);
 
   return (
     <div style={{ padding: '24px', maxWidth: '1200px', margin: '0 auto', width: '100%' }}>

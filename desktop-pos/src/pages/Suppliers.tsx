@@ -3,6 +3,7 @@ import { Search, Plus, Filter, Edit, Building2, Mail, Phone, MapPin, Truck, File
 import SupplierFormModal from '../components/suppliers/SupplierFormModal';
 import { addSupplier, updateSupplier, deleteSupplier } from '../firebase/suppliersService';
 import { useAuth } from '../context/AuthContext';
+import { filterSuppliers } from '../utils/suppliers';
 
 const Suppliers = ({ suppliers, setSuppliers, showToast }: { suppliers: any[], setSuppliers: (sups: any[]) => void, showToast?: (m: string, t?: 'success'|'error') => void }) => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -50,10 +51,7 @@ const Suppliers = ({ suppliers, setSuppliers, showToast }: { suppliers: any[], s
     }
   };
 
-  const filteredSuppliers = suppliers.filter(s => 
-    s.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    s.contact.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredSuppliers = filterSuppliers(suppliers, searchTerm);
 
   return (
     <div style={{ padding: '24px', maxWidth: '1200px', margin: '0 auto', width: '100%' }}>
@@ -87,7 +85,7 @@ const Suppliers = ({ suppliers, setSuppliers, showToast }: { suppliers: any[], s
           </div>
           <input 
             type="text" 
-            placeholder="Buscar proveedor por empresa o contacto (Ej. Corripio)..." 
+            placeholder="Buscar proveedor por empresa, contacto, RNC o teléfono..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             style={{ 
@@ -129,6 +127,11 @@ const Suppliers = ({ suppliers, setSuppliers, showToast }: { suppliers: any[], s
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: '20px' }}>
+        {filteredSuppliers.length === 0 && (
+          <div style={{ gridColumn: '1 / -1', padding: '40px', textAlign: 'center', color: 'var(--text-muted)' }}>
+            {searchTerm ? 'No se encontraron proveedores con esos datos.' : 'Aún no hay proveedores registrados.'}
+          </div>
+        )}
         {filteredSuppliers.map(supplier => (
           <div key={supplier.id} className="card animate-item" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
             <div className="flex-between" style={{ alignItems: 'flex-start' }}>

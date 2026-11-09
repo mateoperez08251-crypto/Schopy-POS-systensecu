@@ -5,13 +5,16 @@ import {
   LayoutDashboard, ShoppingBag, Package, Calendar as CalendarIcon, 
   BarChart2, ShieldAlert, MoreHorizontal, Settings, HelpCircle, 
   ArrowUpRight, LogOut, Menu, X, Truck, Users, Wallet, Wrench, Cloud,
-  AlertTriangle
+  AlertTriangle, Barcode
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { useBusiness } from '../context/BusinessContext';
+import { version } from '../../package.json';
 
 const Sidebar = ({ onOpenRestockModal }: { onOpenRestockModal?: () => void }) => {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const { logout, userData } = useAuth();
+  const { hasFeature } = useBusiness();
   const navigate = useNavigate();
   const [pendingNavigation, setPendingNavigation] = useState<string | null>(null);
 
@@ -45,6 +48,7 @@ const Sidebar = ({ onOpenRestockModal }: { onOpenRestockModal?: () => void }) =>
     },
     { icon: Wallet, label: 'Caja & Cortes', path: '/cash-register' },
     { icon: Package, label: 'Inventario', path: '/inventory' },
+    { icon: Barcode, label: 'Códigos de Barras', path: '/barcode-generator' },
     {
       icon: Truck,
       label: 'Proveedores',
@@ -56,11 +60,11 @@ const Sidebar = ({ onOpenRestockModal }: { onOpenRestockModal?: () => void }) =>
       ]
     },
     { icon: Users, label: 'Clientes', path: '/customers' },
-    { icon: Wrench, label: 'Mecánicos (Dashboard)', path: '/mechanics-dashboard' },
+    { icon: Wrench, label: 'Mecánicos (Dashboard)', path: '/mechanics-dashboard', feature: 'mechanics' as const },
     { icon: ShieldAlert, label: 'Personal (Cajeros)', path: '/staff' },
     { icon: Cloud, label: 'Respaldo a Nube', path: '/backup' },
     { icon: ShieldAlert, label: 'Auditoría IA', path: '/audit' }
-  ];
+  ].filter(item => !item.feature || hasFeature(item.feature));
 
   const [expandedMenu, setExpandedMenu] = useState<string | null>('Ventas');
 
@@ -79,7 +83,10 @@ const Sidebar = ({ onOpenRestockModal }: { onOpenRestockModal?: () => void }) =>
         </div>
         {!isCollapsed && (
           <>
-            <h2 style={{ fontSize: '1.25rem', fontWeight: 700, whiteSpace: 'nowrap' }}>Schopy</h2>
+            <div style={{ lineHeight: 1.2 }}>
+              <h2 style={{ fontSize: '1.25rem', fontWeight: 700, whiteSpace: 'nowrap' }}>Schopy</h2>
+              <span style={{ display: 'block', fontSize: '0.7rem', fontWeight: 500, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>v{version}</span>
+            </div>
             <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginLeft: 'auto', background: 'var(--bg-app)', padding: '2px 6px', borderRadius: '4px', whiteSpace: 'nowrap' }}>POS & IA</span>
           </>
         )}

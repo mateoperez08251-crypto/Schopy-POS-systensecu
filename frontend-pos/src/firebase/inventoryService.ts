@@ -13,6 +13,19 @@ import {
 
 const COLLECTION_NAME = 'inventory';
 
+export const sanitizeProductData = (raw: Record<string, any>): Record<string, any> => {
+  const clean: Record<string, any> = {};
+  for (const [key, val] of Object.entries(raw)) {
+    if (val === undefined) continue;
+    if (typeof val === 'number') {
+      clean[key] = isNaN(val) ? 0 : val;
+    } else {
+      clean[key] = val;
+    }
+  }
+  return clean;
+};
+
 export const subscribeToInventory = (companyId: string, callback: (data: any[]) => void) => {
   const q = query(collection(db, COLLECTION_NAME), where("companyId", "==", companyId));
   
@@ -29,9 +42,12 @@ export const subscribeToInventory = (companyId: string, callback: (data: any[]) 
 
 export const addInventoryItem = async (companyId: string, itemData: any) => {
   try {
+    const sanitized = sanitizeProductData(itemData);
+    delete sanitized.id;
+
     const docRef = await addDoc(collection(db, COLLECTION_NAME), {
-      ...itemData,
-      companyId, // Etiqueta obligatoria para el SaaS
+      ...sanitized,
+      companyId: companyId || 'local',
       createdAt: new Date().toISOString()
     });
     return docRef.id;
@@ -43,9 +59,9 @@ export const addInventoryItem = async (companyId: string, itemData: any) => {
 
 export const updateInventoryItem = async (id: string, itemData: any) => {
   try {
+    const sanitized = sanitizeProductData(itemData);
+    const { id: _, companyId, createdAt, ...updateData } = sanitized;
     const docRef = doc(db, COLLECTION_NAME, id);
-    // Extraemos campos que no deben actualizarse
-    const { id: _, companyId, createdAt, ...updateData } = itemData;
     await updateDoc(docRef, updateData);
   } catch (error) {
     console.error("Error updating document: ", error);
@@ -61,3 +77,4 @@ export const deleteInventoryItem = async (id: string) => {
     throw error;
   }
 };
+

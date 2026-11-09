@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Search, Plus, Filter, PackagePlus, Calendar, ArrowRight, User } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { smartSearch } from '../utils/searchEngine';
 const INITIAL_RECEIVINGS = [
   { id: 'RCV-1001', date: '2026-07-25T09:30:00', supplier: 'Distribuidora Corripio', items: 4, totalCost: 12500, user: 'Admin' },
   { id: 'RCV-1002', date: '2026-07-24T14:15:00', supplier: 'Cervecería Nacional', items: 2, totalCost: 8300, user: 'Caja 1' },
@@ -27,10 +28,10 @@ const Receivings = ({ suppliers }: { suppliers?: any[] }) => {
     setReceivings([newReceiving, ...receivings]);
   };
 
-  const filteredReceivings = receivings.filter(r => 
-    r.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    r.supplier.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredReceivings = useMemo(() => {
+    if (!searchTerm) return receivings;
+    return smartSearch(receivings, searchTerm, ['id', 'supplier', 'user']);
+  }, [receivings, searchTerm]);
 
   return (
     <div style={{ padding: '24px', maxWidth: '1200px', margin: '0 auto', width: '100%' }}>

@@ -32,13 +32,13 @@ const ReceiveProductsModal: React.FC<ReceiveProductsModalProps> = ({ isOpen, onC
   const totalCost = items.reduce((sum, item) => sum + (item.quantity * item.cost), 0);
 
   return (
-    <div style={{
+    <div className="modal-overlay checkout-modal-overlay" style={{
       position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
       backgroundColor: 'rgba(0, 0, 0, 0.7)', backdropFilter: 'blur(4px)',
       display: 'flex', alignItems: 'center', justifyContent: 'center',
       zIndex: 9999, padding: '20px'
-    }}>
-      <div className="card" style={{
+    }} onClick={onClose}>
+      <div className="card" onClick={e => e.stopPropagation()} style={{
         width: '100%', maxWidth: '800px', maxHeight: '90vh', backgroundColor: 'var(--bg-card)',
         borderRadius: '16px', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
         display: 'flex', flexDirection: 'column', animation: 'scaleIn 0.2s ease-out'
@@ -71,7 +71,7 @@ const ReceiveProductsModal: React.FC<ReceiveProductsModalProps> = ({ isOpen, onC
             <label style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '12px', display: 'block' }}>Proveedor Origen</label>
             <div style={{ position: 'relative' }}>
               <Building2 size={18} color="var(--text-muted)" style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)' }} />
-              <select className="input" style={{ width: '100%', paddingLeft: '44px', appearance: 'none', background: 'var(--bg-card)' }}
+              <select className="input" style={{ width: '100%', paddingLeft: '44px', appearance: 'none', background: 'var(--bg-card)', color: 'var(--text-primary)', border: '1px solid var(--border-medium)' }}
                 value={supplier} onChange={e => setSupplier(e.target.value)}>
                 <option value="">Seleccione un proveedor...</option>
                 <option value="1">Distribuidora Corripio</option>
@@ -98,7 +98,7 @@ const ReceiveProductsModal: React.FC<ReceiveProductsModalProps> = ({ isOpen, onC
                     <div style={{ position: 'relative' }}>
                       <Search size={16} color="var(--text-muted)" style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }} />
                       <input type="text" className="input" placeholder="Buscar producto (ej. Coca Cola)" 
-                        style={{ width: '100%', paddingLeft: '36px', background: 'var(--bg-card)', fontSize: '0.9rem', padding: '8px 12px 8px 36px' }}
+                        style={{ width: '100%', paddingLeft: '36px', background: 'var(--bg-card)', color: 'var(--text-primary)', fontSize: '0.9rem', padding: '8px 12px 8px 36px', border: '1px solid var(--border-medium)' }}
                         value={item.product} onChange={e => handleChangeItem(index, 'product', e.target.value)} />
                     </div>
                   </div>
@@ -107,7 +107,7 @@ const ReceiveProductsModal: React.FC<ReceiveProductsModalProps> = ({ isOpen, onC
                     <div style={{ position: 'relative' }}>
                       <span style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', fontSize: '0.85rem', color: 'var(--text-muted)' }}>Cant:</span>
                       <input type="number" min="1" className="input" 
-                        style={{ width: '100%', paddingLeft: '48px', background: 'var(--bg-card)', fontSize: '0.9rem', padding: '8px 12px 8px 48px' }}
+                        style={{ width: '100%', paddingLeft: '48px', background: 'var(--bg-card)', color: 'var(--text-primary)', fontSize: '0.9rem', padding: '8px 12px 8px 48px', border: '1px solid var(--border-medium)' }}
                         value={item.quantity} onChange={e => handleChangeItem(index, 'quantity', parseInt(e.target.value) || 0)} />
                     </div>
                   </div>
@@ -116,7 +116,7 @@ const ReceiveProductsModal: React.FC<ReceiveProductsModalProps> = ({ isOpen, onC
                     <div style={{ position: 'relative' }}>
                       <span style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', fontSize: '0.85rem', color: 'var(--text-muted)' }}>Costo $:</span>
                       <input type="number" min="0" step="0.01" className="input" 
-                        style={{ width: '100%', paddingLeft: '64px', background: 'var(--bg-card)', fontSize: '0.9rem', padding: '8px 12px 8px 64px' }}
+                        style={{ width: '100%', paddingLeft: '64px', background: 'var(--bg-card)', color: 'var(--text-primary)', fontSize: '0.9rem', padding: '8px 12px 8px 64px', border: '1px solid var(--border-medium)' }}
                         value={item.cost} onChange={e => handleChangeItem(index, 'cost', parseFloat(e.target.value) || 0)} />
                     </div>
                   </div>

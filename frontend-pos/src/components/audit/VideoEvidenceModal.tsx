@@ -44,13 +44,13 @@ const VideoEvidenceModal = ({ isOpen, onClose, incident, onAction }: Props) => {
   if (!isOpen || !incident) return null;
 
   return (
-    <div style={{
+    <div className="modal-overlay checkout-modal-overlay" style={{
       position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
       background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)',
       display: 'flex', alignItems: 'center', justifyContent: 'center',
       zIndex: 9999, padding: '20px'
-    }}>
-      <div className="animate-pop" style={{
+    }} onClick={onClose}>
+      <div className="animate-pop card" onClick={e => e.stopPropagation()} style={{
         background: 'var(--bg-card)', borderRadius: '16px',
         width: '100%', maxWidth: '960px', maxHeight: '90vh',
         display: 'flex', flexDirection: 'column',

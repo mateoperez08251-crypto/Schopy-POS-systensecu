@@ -1,10 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { Store, Settings as SettingsIcon, Printer, Shield, Save, Percent, MapPin, Phone, FileText } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { useBusiness } from '../context/BusinessContext';
+import { BUSINESS_TYPE_LIST, isBusinessTypeId } from '../config/businessTypes';
 import { updateStaffLocal } from '../firebase/localStaffService';
 
 const Settings = () => {
   const { currentUser, refreshSettings } = useAuth();
+  const { businessType, setBusinessType } = useBusiness();
   const [loading, setLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [message, setMessage] = useState({ type: '', text: '' });
@@ -219,6 +222,26 @@ const Settings = () => {
             </div>
           </div>
         </div>
+
+        {/* Sección: Tipo de Negocio */}
+        {currentUser?.role === 'admin' && (
+          <div className="card" style={{ padding: '24px' }}>
+            <h2 style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Store size={20} color="var(--accent-primary)" /> Tipo de Negocio
+            </h2>
+            <select
+              aria-label="Tipo de negocio"
+              value={businessType || ''}
+              onChange={e => { if (isBusinessTypeId(e.target.value)) setBusinessType(e.target.value); }}
+              style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid var(--border-medium)', background: 'var(--bg-app)', color: 'var(--text-primary)', outline: 'none' }}
+            >
+              {BUSINESS_TYPE_LIST.map(type => <option key={type.id} value={type.id}>{type.label}</option>)}
+            </select>
+            <p style={{ margin: '8px 0 0', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+              Solo muestra u oculta funciones del rubro. No borra productos, ventas ni mecánicos.
+            </p>
+          </div>
+        )}
 
         {/* Sección: Preferencias del Sistema */}
         <div className="card" style={{ padding: '24px' }}>

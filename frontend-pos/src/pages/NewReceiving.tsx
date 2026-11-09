@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { ArrowLeft, Search, Building2, PackagePlus, FileText, Phone, User, Trash2, Save } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { smartSearch } from '../utils/searchEngine';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
@@ -15,9 +16,16 @@ const NewReceiving = ({ inventory, setInventory, suppliers, showToast }: { inven
   
   const [items, setItems] = useState<any[]>([]);
 
-  // Derived state
-  const filteredSuppliers = suppliers.filter(s => s.name.toLowerCase().includes(supplierSearch.toLowerCase()) || (s.rnc && s.rnc.includes(supplierSearch)));
-  const filteredProducts = inventory.filter(p => p.name.toLowerCase().includes(productSearch.toLowerCase()) || (p.code && p.code.toLowerCase().includes(productSearch.toLowerCase())));
+  // Derived state with smartSearch
+  const filteredSuppliers = useMemo(() => {
+    if (!supplierSearch) return suppliers;
+    return smartSearch(suppliers, supplierSearch, ['name', 'rnc', 'contact']);
+  }, [suppliers, supplierSearch]);
+
+  const filteredProducts = useMemo(() => {
+    if (!productSearch) return inventory;
+    return smartSearch(inventory, productSearch, ['name', 'code', 'category']);
+  }, [inventory, productSearch]);
 
   const handleSelectSupplier = (supplier: any) => {
     setSelectedSupplier(supplier);

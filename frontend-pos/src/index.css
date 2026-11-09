@@ -293,21 +293,228 @@ input[type="number"]::-webkit-inner-spin-button {
 
 /* Dark Mode Overrides */
 body.dark-mode {
-  --bg-app: #121212;
-  --bg-sidebar: #1E1E1E;
-  --bg-card: #1E1E1E;
+  --bg-app: #0F172A;
+  --bg-sidebar: #1E293B;
+  --bg-card: #1E293B;
   
-  --text-primary: #F9FAFB;
-  --text-secondary: #D1D5DB;
-  --text-muted: #9CA3AF;
+  --text-primary: #F8FAFC;
+  --text-secondary: #CBD5E1;
+  --text-muted: #94A3B8;
   
-  --accent-primary-light: #3730A3;
+  --accent-primary-light: #312E81;
   --accent-success-light: #064E3B;
   --accent-danger-light: #7F1D1D;
   
-  --border-light: #2D3748;
-  --border-medium: #4A5568;
+  --border-light: #334155;
+  --border-medium: #475569;
 }
+
+/* Base Input Style Helper */
+.input {
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-medium);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.input:focus {
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+}
+
+/* ========================================================
+   Dark Mode: Global Form Controls & Cards
+   ======================================================== */
+body.dark-mode input,
+body.dark-mode select,
+body.dark-mode textarea {
+  color: var(--text-primary);
+  background-color: var(--bg-card);
+  border-color: var(--border-medium);
+}
+
+body.dark-mode input::placeholder,
+body.dark-mode textarea::placeholder {
+  color: var(--text-muted);
+}
+
+body.dark-mode select option {
+  background-color: #1E293B !important;
+  color: #F8FAFC !important;
+}
+
+body.dark-mode .card {
+  background-color: var(--bg-card);
+  color: var(--text-primary);
+  border-color: var(--border-light);
+}
+
+/* ========================================================
+   Dark Mode: Modals & Portals (Complete Guarantee)
+   ======================================================== */
+.modal-overlay,
+.checkout-modal-overlay {
+  color-scheme: light;
+}
+
+body.dark-mode .modal-overlay,
+body.dark-mode .checkout-modal-overlay,
+body.dark-mode .checkout-modal,
+body.dark-mode div[style*="position: fixed"],
+body.dark-mode div[style*="position:fixed"] {
+  color-scheme: dark;
+}
+
+/* All headings inside modals */
+body.dark-mode .modal-overlay h1,
+body.dark-mode .modal-overlay h2,
+body.dark-mode .modal-overlay h3,
+body.dark-mode .modal-overlay h4,
+body.dark-mode .checkout-modal-overlay h1,
+body.dark-mode .checkout-modal-overlay h2,
+body.dark-mode .checkout-modal-overlay h3,
+body.dark-mode .checkout-modal-overlay h4,
+body.dark-mode .checkout-modal h1,
+body.dark-mode .checkout-modal h2,
+body.dark-mode .checkout-modal h3,
+body.dark-mode .checkout-modal h4,
+body.dark-mode div[style*="position: fixed"] h1,
+body.dark-mode div[style*="position: fixed"] h2,
+body.dark-mode div[style*="position: fixed"] h3,
+body.dark-mode div[style*="position: fixed"] h4,
+body.dark-mode div[style*="position:fixed"] h1,
+body.dark-mode div[style*="position:fixed"] h2,
+body.dark-mode div[style*="position:fixed"] h3,
+body.dark-mode div[style*="position:fixed"] h4 {
+  color: var(--text-primary) !important;
+}
+
+/* Labels inside modals */
+body.dark-mode .modal-overlay label,
+body.dark-mode .checkout-modal-overlay label,
+body.dark-mode .checkout-modal label,
+body.dark-mode div[style*="position: fixed"] label,
+body.dark-mode div[style*="position:fixed"] label {
+  color: var(--text-secondary) !important;
+}
+
+/* Paragraphs & general texts inside modals */
+body.dark-mode .modal-overlay p:not([style*="color"]),
+body.dark-mode .checkout-modal-overlay p:not([style*="color"]),
+body.dark-mode .checkout-modal p:not([style*="color"]),
+body.dark-mode div[style*="position: fixed"] p:not([style*="color"]),
+body.dark-mode div[style*="position:fixed"] p:not([style*="color"]) {
+  color: var(--text-secondary);
+}
+
+body.dark-mode .modal-overlay span:not([style*="color"]),
+body.dark-mode .checkout-modal-overlay span:not([style*="color"]),
+body.dark-mode .checkout-modal span:not([style*="color"]) {
+  color: var(--text-primary);
+}
+
+/* Cards & containers inside modals */
+body.dark-mode .modal-overlay .card,
+body.dark-mode .checkout-modal-overlay .card,
+body.dark-mode .checkout-modal,
+body.dark-mode div[style*="position: fixed"] .card,
+body.dark-mode div[style*="position:fixed"] .card {
+  background-color: var(--bg-card) !important;
+  color: var(--text-primary) !important;
+  border-color: var(--border-medium) !important;
+}
+
+/* Inputs, selects, and textareas inside all modals */
+body.dark-mode .modal-overlay input,
+body.dark-mode .modal-overlay select,
+body.dark-mode .modal-overlay textarea,
+body.dark-mode .checkout-modal-overlay input,
+body.dark-mode .checkout-modal-overlay select,
+body.dark-mode .checkout-modal-overlay textarea,
+body.dark-mode .checkout-modal input,
+body.dark-mode .checkout-modal select,
+body.dark-mode .checkout-modal textarea,
+body.dark-mode div[style*="position: fixed"] input,
+body.dark-mode div[style*="position: fixed"] select,
+body.dark-mode div[style*="position: fixed"] textarea,
+body.dark-mode div[style*="position:fixed"] input,
+body.dark-mode div[style*="position:fixed"] select,
+body.dark-mode div[style*="position:fixed"] textarea {
+  background-color: var(--bg-app) !important;
+  color: var(--text-primary) !important;
+  border-color: var(--border-medium) !important;
+}
+
+body.dark-mode .modal-overlay input::placeholder,
+body.dark-mode .modal-overlay textarea::placeholder,
+body.dark-mode .checkout-modal-overlay input::placeholder,
+body.dark-mode .checkout-modal-overlay textarea::placeholder,
+body.dark-mode .checkout-modal input::placeholder,
+body.dark-mode .checkout-modal textarea::placeholder,
+body.dark-mode div[style*="position: fixed"] input::placeholder,
+body.dark-mode div[style*="position: fixed"] textarea::placeholder {
+  color: var(--text-muted) !important;
+}
+
+body.dark-mode .modal-overlay select option,
+body.dark-mode .checkout-modal-overlay select option,
+body.dark-mode .checkout-modal select option,
+body.dark-mode div[style*="position: fixed"] select option {
+  background-color: #1E293B !important;
+  color: #F8FAFC !important;
+}
+
+/* Modal header/footer bands */
+body.dark-mode .modal-overlay [style*="borderBottom"],
+body.dark-mode .modal-overlay [style*="border-bottom"],
+body.dark-mode .checkout-modal-overlay [style*="borderBottom"],
+body.dark-mode .checkout-modal-overlay [style*="border-bottom"],
+body.dark-mode .checkout-modal [style*="borderBottom"],
+body.dark-mode .checkout-modal [style*="border-bottom"] {
+  border-color: var(--border-medium) !important;
+}
+
+body.dark-mode .modal-overlay [style*="borderTop"],
+body.dark-mode .modal-overlay [style*="border-top"],
+body.dark-mode .checkout-modal-overlay [style*="borderTop"],
+body.dark-mode .checkout-modal-overlay [style*="border-top"],
+body.dark-mode .checkout-modal [style*="borderTop"],
+body.dark-mode .checkout-modal [style*="border-top"] {
+  border-color: var(--border-medium) !important;
+}
+
+/* Buttons inside modals */
+body.dark-mode .modal-overlay .btn-outline,
+body.dark-mode .checkout-modal-overlay .btn-outline,
+body.dark-mode .checkout-modal .btn-outline,
+body.dark-mode div[style*="position: fixed"] .btn-outline {
+  background-color: var(--bg-card) !important;
+  color: var(--text-primary) !important;
+  border-color: var(--border-medium) !important;
+}
+
+body.dark-mode .modal-overlay .btn-primary,
+body.dark-mode .checkout-modal-overlay .btn-primary,
+body.dark-mode .checkout-modal .btn-primary,
+body.dark-mode div[style*="position: fixed"] .btn-primary {
+  color: #FFFFFF !important;
+}
+
+/* Tables inside modals */
+body.dark-mode .modal-overlay table tr,
+body.dark-mode .checkout-modal-overlay table tr {
+  border-color: var(--border-light) !important;
+}
+body.dark-mode .modal-overlay table td,
+body.dark-mode .checkout-modal-overlay table td {
+  color: var(--text-primary) !important;
+}
+body.dark-mode .modal-overlay table th,
+body.dark-mode .checkout-modal-overlay table th {
+  color: var(--text-muted) !important;
+}
+
 
 /* Toggle Switch Styles */
 .toggle-switch {

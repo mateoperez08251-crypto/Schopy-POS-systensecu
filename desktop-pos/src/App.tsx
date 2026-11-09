@@ -34,10 +34,17 @@ import RestockModal from './components/inventory/RestockModal';
 import UpdateModal from './components/UpdateModal';
 
 import { useAuth } from './context/AuthContext';
+import { useBusiness } from './context/BusinessContext';
+import BusinessTypeSetup from './pages/BusinessTypeSetup';
 import { subscribeToInventory } from './firebase/inventoryService';
 import { subscribeToCustomers } from './firebase/customersService';
 import { subscribeToSales } from './firebase/localSalesService';
 import { subscribeToSuppliers } from './firebase/suppliersService';
+import { startAutoBackupSchedule, triggerAutoBackup } from './services/autoBackup';
+import { sortSuppliers } from './utils/suppliers';
+
+// Carga diferida: JsBarcode y esta pantalla solo se descargan al abrirla.
+const BarcodeGenerator = React.lazy(() => import('./pages/BarcodeGenerator'));
 
 function App() {
   const [salesHistory, setSalesHistory] = useState<any[]>([]);
@@ -48,8 +55,19 @@ function App() {
   const [isRestockModalOpen, setIsRestockModalOpen] = useState(false);
 
   const { firebaseUser, companyId, currentUser, userData } = useAuth();
+  const { businessType, isLoading: isBusinessLoading, hasFeature } = useBusiness();
 
   const effectiveCompanyId = userData?.companyId || companyId || 'local';
+  const sortedSuppliers = React.useMemo(() => sortSuppliers(suppliers), [suppliers]);
+
+  // Iniciar respaldo automático permanente en segundo plano (cada 5 minutos y al inicio)
+  React.useEffect(() => {
+    const stopBackupSchedule = startAutoBackupSchedule(5 * 60 * 1000);
+    triggerAutoBackup(2500);
+    return () => {
+      stopBackupSchedule();
+    };
+  }, []);
 
   React.useEffect(() => {
     if (!effectiveCompanyId) return;
@@ -86,15 +104,17 @@ function App() {
     setTimeout(() => setToast(null), 3000);
   };
 
+  let content;
   if (!firebaseUser) {
-    return <CompanyAuthScreen />;
-  }
-
-  if (!currentUser) {
-    return <LocalLogin />;
-  }
-
-  return (
+    content = <CompanyAuthScreen />;
+  } else if (isBusinessLoading) {
+    content = null;
+  } else if (!businessType) {
+    content = <BusinessTypeSetup />;
+  } else if (!currentUser) {
+    content = <LocalLogin />;
+  } else {
+    content = (
     <Router>
       <div className="app-layout">
         <OfflineOverlay />
@@ -105,15 +125,16 @@ function App() {
             <Route path="/" element={<Dashboard />} />
             <Route path="/pos" element={<POS salesHistory={salesHistory} setSalesHistory={setSalesHistory} inventory={inventory} />} />
             <Route path="/voucher-pos" element={<VoucherPOS salesHistory={salesHistory} setSalesHistory={setSalesHistory} inventory={inventory} />} />
-            <Route path="/sales-history" element={<SalesHistory salesHistory={salesHistory} inventory={inventory} />} />
+            <Route path="/sales-history" element={<SalesHistory salesHistory={salesHistory} inventory={inventory} showToast={showToast} />} />
             <Route path="/cash-register" element={<CashRegister salesHistory={salesHistory} setSalesHistory={setSalesHistory} showToast={showToast} />} />
-            <Route path="/inventory" element={<Inventory inventory={inventory} setInventory={setInventory} suppliers={suppliers} showToast={showToast} />} />
-            <Route path="/suppliers" element={<Suppliers suppliers={suppliers} setSuppliers={setSuppliers} showToast={showToast} />} />
-            <Route path="/customers" element={<Customers customers={customers} setCustomers={setCustomers} showToast={showToast} />} />
+            <Route path="/inventory" element={<Inventory inventory={inventory} setInventory={setInventory} suppliers={sortedSuppliers} showToast={showToast} />} />
+            <Route path="/barcode-generator" element={<React.Suspense fallback={null}><BarcodeGenerator inventory={inventory} showToast={showToast} /></React.Suspense>} />
+            <Route path="/suppliers" element={<Suppliers suppliers={sortedSuppliers} setSuppliers={setSuppliers} showToast={showToast} />} />
+            <Route path="/customers" element={<Customers customers={customers} setCustomers={setCustomers} inventory={inventory} showToast={showToast} />} />
             <Route path="/staff" element={<Staff showToast={showToast} />} />
-            <Route path="/mechanics-dashboard" element={<MechanicDashboard />} />
-            <Route path="/receivings/new" element={<NewReceiving inventory={inventory} setInventory={setInventory} suppliers={suppliers} showToast={showToast} />} />
-            <Route path="/receivings" element={<Receivings suppliers={suppliers} />} />
+            {hasFeature('mechanics') && <Route path="/mechanics-dashboard" element={<MechanicDashboard />} />}
+            <Route path="/receivings/new" element={<NewReceiving inventory={inventory} setInventory={setInventory} suppliers={sortedSuppliers} showToast={showToast} />} />
+            <Route path="/receivings" element={<Receivings suppliers={sortedSuppliers} />} />
             <Route path="/audit" element={<Audit />} />
             <Route path="/backup" element={<BackupScreen />} />
             <Route path="/settings" element={<Settings />} />
@@ -139,12 +160,19 @@ function App() {
         <RestockModal 
           isOpen={isRestockModalOpen} 
           onClose={() => setIsRestockModalOpen(false)} 
-          inventory={inventory} 
-          suppliers={suppliers} 
+          inventory={inventory}
+          suppliers={sortedSuppliers}
         />
-        <UpdateModal />
       </div>
     </Router>
+    );
+  }
+
+  return (
+    <>
+      <UpdateModal />
+      {content}
+    </>
   );
 }
 

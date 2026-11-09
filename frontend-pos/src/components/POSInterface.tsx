@@ -1,7 +1,9 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { Search, ShoppingCart, Trash2, Plus, Minus, CreditCard, Banknote, PauseCircle, PlayCircle, Printer, MessageCircle, Tag, Package, X, Calendar, MapPin, StickyNote, FileText, History } from 'lucide-react';
+import Fuse from 'fuse.js';
+import { smartSearch } from '../utils/searchEngine';
 import { useAuth } from '../context/AuthContext';
 import { logAuditEvent } from '../firebase/auditService';
 
@@ -26,9 +28,10 @@ interface POSInterfaceProps {
   isVoucherMode: boolean;
   onOpenVoucher?: () => void;
   onCloseVoucher?: () => void;
+  inventory?: any[];
 }
 
-const POSInterface: React.FC<POSInterfaceProps> = ({ salesHistory, setSalesHistory, isVoucherMode, onOpenVoucher, onCloseVoucher }) => {
+const POSInterface: React.FC<POSInterfaceProps> = ({ salesHistory, setSalesHistory, isVoucherMode, onOpenVoucher, onCloseVoucher, inventory = [] }) => {
   const navigate = useNavigate();
   const { currentUser, userData } = useAuth();
   const currency = userData?.currency || '$';
@@ -58,10 +61,17 @@ const POSInterface: React.FC<POSInterfaceProps> = ({ salesHistory, setSalesHisto
 
   const searchInputRef = useRef<HTMLInputElement>(null);
 
-  const filteredProducts = searchTerm.trim() === '' ? [] : PRODUCT_CATALOG.filter(p => 
-    (selectedCategory === 'Todos' || p.category === selectedCategory) &&
-    (p.name.toLowerCase().includes(searchTerm.toLowerCase()) || p.code.includes(searchTerm))
-  );
+  const filteredProducts = useMemo(() => {
+    if (searchTerm.trim() === '') return [];
+    
+    // Si hay inventario real de Firebase, lo usamos; si no, el catálogo por defecto
+    let pool = (inventory && inventory.length > 0) ? inventory : PRODUCT_CATALOG;
+    if (selectedCategory !== 'Todos') {
+      pool = pool.filter(p => p.category === selectedCategory);
+    }
+    
+    return smartSearch(pool, searchTerm, ['name', 'code', 'category']);
+  }, [searchTerm, selectedCategory, inventory]);
 
   const subtotal = cart.reduce((acc, item) => acc + ((item.price * item.quantity) * (1 - (item.discount || 0)/100)), 0);
   const tax = subtotal * taxRateVal;
@@ -79,6 +89,12 @@ const POSInterface: React.FC<POSInterfaceProps> = ({ salesHistory, setSalesHisto
         else if (!isCheckoutOpen) { setCart([]); setQuickCash(null); }
       }
       if (e.key === 'Enter') {
+        if (document.activeElement === searchInputRef.current && filteredProducts.length > 0) {
+          e.preventDefault();
+          addToCart(filteredProducts[0]);
+          setSearchTerm('');
+          return;
+        }
         if (isCheckoutOpen && checkoutStep === 'success') {
           e.preventDefault();
           finishSale();
@@ -411,27 +427,39 @@ const POSInterface: React.FC<POSInterfaceProps> = ({ salesHistory, setSalesHisto
             {searchTerm.trim() !== '' && (
               <div className="card animate-pop" style={{ 
                 position: 'absolute', top: 'calc(100% + 8px)', left: 0, width: '100%', 
-                maxHeight: '300px', overflowY: 'auto', zIndex: 20,
-                padding: '8px', boxShadow: 'var(--shadow-lg)'
+                maxHeight: '320px', overflowY: 'auto', zIndex: 20,
+                padding: '10px', boxShadow: 'var(--shadow-lg)',
+                backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-medium)'
               }}>
                 {filteredProducts.length === 0 ? (
                   <div style={{ padding: '24px', textAlign: 'center', color: 'var(--text-muted)' }}>
-                    No se encontraron productos.
+                    No se encontraron productos coincidentes.
                   </div>
                 ) : (
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '8px' }}>
-                    {filteredProducts.map(product => (
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '8px' }}>
+                    {filteredProducts.map((product, idx) => (
                       <div 
                         key={product.id} 
                         onClick={() => { addToCart(product); setSearchTerm(''); searchInputRef.current?.focus(); }} 
                         style={{ 
                           padding: '12px', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', 
                           alignItems: 'center', background: 'var(--bg-app)', borderRadius: 'var(--radius-sm)',
-                          borderLeft: `4px solid ${product.color}`
+                          borderLeft: `4px solid ${product.color || 'var(--accent-primary)'}`,
+                          border: '1px solid var(--border-light)',
+                          transition: 'transform 0.15s, background-color 0.15s'
                         }}
                       >
-                        <span style={{ fontWeight: 600, fontSize: '0.9rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{product.name}</span>
-                        <span style={{ fontSize: '0.9rem', fontWeight: 800, color: 'var(--text-primary)' }}>{currency}{product.price.toFixed(2)}</span>
+                        <div style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden', paddingRight: '8px' }}>
+                          <span style={{ fontWeight: 600, fontSize: '0.9rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', color: 'var(--text-primary)' }}>
+                            {product.name}
+                          </span>
+                          <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                            {product.code || product.category} {idx === 0 && <b style={{ color: 'var(--accent-primary)', marginLeft: '4px' }}>(Enter)</b>}
+                          </span>
+                        </div>
+                        <span style={{ fontSize: '0.95rem', fontWeight: 800, color: 'var(--accent-primary)', flexShrink: 0 }}>
+                          {currency}{product.price.toFixed(2)}
+                        </span>
                       </div>
                     ))}
                   </div>
@@ -547,17 +575,17 @@ const POSInterface: React.FC<POSInterfaceProps> = ({ salesHistory, setSalesHisto
 
       {/* --- MODALS --- */}
       {modifierItem && (
-        <div className="checkout-modal-overlay" onClick={() => setModifierItem(null)} style={{ background: 'rgba(0,0,0,0.4)', zIndex: 999 }}>
+        <div className="modal-overlay checkout-modal-overlay" onClick={() => setModifierItem(null)} style={{ background: 'rgba(0,0,0,0.4)', zIndex: 999 }}>
           <div className="checkout-modal" onClick={e => e.stopPropagation()} style={{ width: '300px', textAlign: 'left', padding: '24px' }}>
             <h3 style={{ marginBottom: '16px', fontWeight: 700 }}>Modificar: {modifierItem.name}</h3>
             <form onSubmit={applyModifier}>
               <div style={{ marginBottom: '12px' }}>
                 <label style={{ fontSize: '0.8rem', fontWeight: 600, display: 'block', marginBottom: '4px' }}>Descuento (%)</label>
-                <input type="number" min="0" max="100" value={modifierItem.discount} onChange={e => setModifierItem({...modifierItem, discount: parseInt(e.target.value) || 0})} style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid var(--border-medium)' }} />
+                <input type="number" min="0" max="100" value={modifierItem.discount} onChange={e => setModifierItem({...modifierItem, discount: parseInt(e.target.value) || 0})} style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid var(--border-medium)', background: 'var(--bg-app)', color: 'var(--text-primary)' }} />
               </div>
               <div style={{ marginBottom: '20px' }}>
                 <label style={{ fontSize: '0.8rem', fontWeight: 600, display: 'block', marginBottom: '4px' }}>Nota (Opcional)</label>
-                <input type="text" placeholder="Ej. Sin azúcar" value={modifierItem.note} onChange={e => setModifierItem({...modifierItem, note: e.target.value})} style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid var(--border-medium)' }} />
+                <input type="text" placeholder="Ej. Sin azúcar" value={modifierItem.note} onChange={e => setModifierItem({...modifierItem, note: e.target.value})} style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid var(--border-medium)', background: 'var(--bg-app)', color: 'var(--text-primary)' }} />
               </div>
               <div style={{ display: 'flex', gap: '8px' }}>
                 <button type="button" className="btn btn-outline" onClick={() => setModifierItem(null)} style={{ flex: 1 }}>Cancelar</button>
@@ -569,7 +597,7 @@ const POSInterface: React.FC<POSInterfaceProps> = ({ salesHistory, setSalesHisto
       )}
 
       {isPaymentModalOpen && createPortal(
-        <div className="checkout-modal-overlay" onClick={() => setIsPaymentModalOpen(false)} style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 9999, padding: '16px' }}>
+        <div className="modal-overlay checkout-modal-overlay" onClick={() => setIsPaymentModalOpen(false)} style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 9999, padding: '16px' }}>
           <div className="checkout-modal" onClick={e => e.stopPropagation()} style={{ width: '100%', maxWidth: '450px', maxHeight: '90vh', padding: '0', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
             {/* Header */}
             <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border-light)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--bg-app)', flexShrink: 0 }}>
@@ -658,7 +686,7 @@ const POSInterface: React.FC<POSInterfaceProps> = ({ salesHistory, setSalesHisto
       )}
 
       {isCheckoutOpen && createPortal(
-        <div className="checkout-modal-overlay" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 9999, padding: '16px' }}>
+        <div className="modal-overlay checkout-modal-overlay" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 9999, padding: '16px' }}>
           <div className="checkout-modal" style={{ width: '100%', maxWidth: '400px', padding: '24px', display: 'flex', flexDirection: 'column', alignItems: 'center', overflow: 'hidden' }}>
             {checkoutStep === 'processing' ? (
               <>

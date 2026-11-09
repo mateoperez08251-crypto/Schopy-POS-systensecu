@@ -1,18 +1,30 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { Search, ShoppingCart, Trash2, Plus, Minus, CreditCard, Banknote, PauseCircle, PlayCircle, Printer, Tag, X, Calendar, MapPin, StickyNote, FileText, History, Package, Users, Star, Briefcase, Wrench } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { useBusiness } from '../context/BusinessContext';
 import { searchByRnc } from '../utils/rncLookup';
 
 import { logAuditEvent } from '../firebase/auditService';
 import { subscribeToMechanics } from '../firebase/localMechanicsService';
+import { subscribeToCustomers } from '../firebase/customersService';
 import { updateInventoryItem } from '../firebase/inventoryService';
 import { addSale } from '../firebase/localSalesService';
 import { invoke } from '@tauri-apps/api/core';
 import Toast from './Toast';
+import { normalizeString, smartSearch } from '../utils/searchEngine';
+import { toDayKey } from '../utils/dateRanges';
 
+const MAX_CUSTOMER_SUGGESTIONS = 6;
 
+const CustomPriceBadge = () => (
+  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '1px 6px', borderRadius: '10px', background: 'rgba(16, 185, 129, 0.12)', color: 'var(--accent-success)', fontSize: '0.7rem', fontWeight: 700, whiteSpace: 'nowrap' }}>
+    <Tag size={10} /> Precio único
+  </span>
+);
+
+const getLocationLabel = (product: any) => (product.location ? `Ubic: ${product.location}` : 'Sin ubicación');
 
 interface POSInterfaceProps {
   salesHistory: any[];
@@ -26,6 +38,7 @@ interface POSInterfaceProps {
 const POSInterface: React.FC<POSInterfaceProps> = ({ salesHistory, setSalesHistory, inventory, isVoucherMode, onOpenVoucher, onCloseVoucher }) => {
   const navigate = useNavigate();
   const { currentUser, userData, companyId } = useAuth();
+  const { hasFeature } = useBusiness();
   const effectiveCompanyId = userData?.companyId || companyId || 'local';
   const currency = userData?.currency || '$';
   const taxEnabled = userData?.taxEnabled !== false;
@@ -84,7 +97,7 @@ const POSInterface: React.FC<POSInterfaceProps> = ({ salesHistory, setSalesHisto
   const [clientAddress, setClientAddress] = useState('');
   const [clientRnc, setClientRnc] = useState('');
   const [invoiceType, setInvoiceType] = useState<'ticket' | 'consumo' | 'credito'>('ticket');
-  const [saleDate, setSaleDate] = useState(() => new Date().toISOString().split('T')[0]);
+  const [saleDate, setSaleDate] = useState(() => toDayKey(new Date()));
   const [saleNote, setSaleNote] = useState('');
   const [voucherDocument, setVoucherDocument] = useState('');
 
@@ -92,30 +105,77 @@ const POSInterface: React.FC<POSInterfaceProps> = ({ salesHistory, setSalesHisto
   const [selectedMechanic, setSelectedMechanic] = useState<string>('');
   const [priceLevel, setPriceLevel] = useState<'normal' | 'frequent' | 'wholesale'>('normal');
 
+  const [customers, setCustomers] = useState<any[]>([]);
+  const [selectedCustomerId, setSelectedCustomerId] = useState('');
+  const [showCustomerList, setShowCustomerList] = useState(false);
+
   useEffect(() => {
     if (!effectiveCompanyId) return;
     return subscribeToMechanics(effectiveCompanyId, (data) => setMechanics(data));
   }, [effectiveCompanyId]);
 
-  const getPrice = (product: any, level: string) => {
+  useEffect(() => {
+    if (!effectiveCompanyId) return;
+    return subscribeToCustomers(effectiveCompanyId, (data) => setCustomers(data));
+  }, [effectiveCompanyId]);
+
+  const selectedCustomer = customers.find(c => c.id === selectedCustomerId);
+  const customPrices: Record<string, number> = selectedCustomer?.customPrices || {};
+  const customPriceCount = Object.keys(customPrices).length;
+
+  const customerSuggestions = useMemo(() => {
+    const term = normalizeString(clientName);
+    if (!term) return [];
+    return customers
+      .filter(c => normalizeString(c.name || '').includes(term) || normalizeString(c.documentId || '').includes(term))
+      .slice(0, MAX_CUSTOMER_SUGGESTIONS);
+  }, [customers, clientName]);
+
+  const selectCustomer = (customer: any) => {
+    setSelectedCustomerId(customer.id);
+    setClientName(customer.name);
+    setClientRnc(customer.documentId || '');
+    setClientAddress(customer.address || '');
+    setShowCustomerList(false);
+  };
+
+  const getLevelPrice = (product: any, level: string) => {
     if (level === 'frequent' && product.priceFrequent) return parseFloat(product.priceFrequent);
     if (level === 'wholesale' && product.priceWholesale) return parseFloat(product.priceWholesale);
     return parseFloat(product.price) || 0;
   };
 
+  const getCustomPrice = (product: any): number | null => {
+    const price = customPrices[product.id];
+    return price > 0 ? price : null;
+  };
+
+  const getPrice = (product: any, level: string) => getCustomPrice(product) ?? getLevelPrice(product, level);
+
+  // Solo reacciona a cambios reales de precios: una actualización ajena del cliente no debe pisar el carrito.
+  const customPricesKey = JSON.stringify(customPrices);
+
   useEffect(() => {
-    setCart(prev => prev.map(item => ({
-      ...item,
-      price: getPrice(item, priceLevel)
-    })));
-  }, [priceLevel]);
+    setCart(prev => prev.map(item => {
+      // item.price ya viene modificado, así que los precios base se leen del inventario.
+      const product = inventory.find(p => p.id === item.id) || item;
+      return {
+        ...item,
+        price: getPrice(product, priceLevel),
+        regularPrice: getLevelPrice(product, priceLevel),
+        isCustomPrice: getCustomPrice(product) !== null
+      };
+    }));
+  }, [priceLevel, selectedCustomerId, customPricesKey]);
 
   const searchInputRef = useRef<HTMLInputElement>(null);
 
-  const filteredProducts = searchTerm.trim() === '' ? [] : inventory.filter(p => 
-    (selectedCategory === 'Todos' || p.category === selectedCategory) &&
-    (p.name.toLowerCase().includes(searchTerm.toLowerCase()) || (p.code && p.code.includes(searchTerm)))
-  );
+  // Motor de búsqueda inteligente ultra-rápido y tolerante a fallos
+  const filteredProducts = useMemo(() => {
+    if (searchTerm.trim() === '') return [];
+    const items = selectedCategory === 'Todos' ? inventory : inventory.filter(p => p.category === selectedCategory);
+    return smartSearch(items, searchTerm, ['name', 'code', 'referenceCode', 'category']);
+  }, [inventory, selectedCategory, searchTerm]);
 
   const subtotal = cart.reduce((acc, item) => acc + ((item.price * item.quantity) * (1 - (item.discount || 0)/100)), 0);
   const tax = subtotal * taxRateVal;
@@ -133,6 +193,11 @@ const POSInterface: React.FC<POSInterfaceProps> = ({ salesHistory, setSalesHisto
         else if (!isCheckoutOpen) { setCart([]); setQuickCash(null); }
       }
       if (e.key === 'Enter') {
+        if (document.activeElement === searchInputRef.current && filteredProducts.length > 0) {
+          e.preventDefault();
+          selectProductForEntry(filteredProducts[0]);
+          return;
+        }
         if (isCheckoutOpen && checkoutStep === 'success') {
           e.preventDefault();
           finishSale();
@@ -154,7 +219,7 @@ const POSInterface: React.FC<POSInterfaceProps> = ({ salesHistory, setSalesHisto
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [cart, isCheckoutOpen, isPaymentModalOpen, modifierItem, checkoutStep, paymentMethod, amountReceived, total]);
+  }, [cart, isCheckoutOpen, isPaymentModalOpen, modifierItem, checkoutStep, paymentMethod, amountReceived, total, filteredProducts]);
 
   const addToCart = (product: any) => {
     if (product.stock <= 5) {
@@ -163,7 +228,7 @@ const POSInterface: React.FC<POSInterfaceProps> = ({ salesHistory, setSalesHisto
     setCart(prev => {
       const exists = prev.find(item => item.id === product.id);
       if (exists) return prev.map(item => item.id === product.id ? { ...item, quantity: item.quantity + 1 } : item);
-      return [...prev, { ...product, price: getPrice(product, priceLevel), quantity: 1, discount: 0, note: '' }];
+      return [...prev, { ...product, price: getPrice(product, priceLevel), regularPrice: getLevelPrice(product, priceLevel), isCustomPrice: getCustomPrice(product) !== null, quantity: 1, discount: 0, note: '' }];
     });
   };
 
@@ -181,12 +246,16 @@ const POSInterface: React.FC<POSInterfaceProps> = ({ salesHistory, setSalesHisto
       setPosAlert({ message: `¡Aviso! Quedan pocas unidades de ${pendingItem.name} (Stock: ${pendingItem.stock})`, type: 'warning' });
     }
     
+    // Si el cajero cambia el precio a mano, deja de ser el precio único del cliente.
+    const isCustomPrice = getCustomPrice(pendingItem) === pendingPrice;
+    const regularPrice = getLevelPrice(pendingItem, priceLevel);
+
     setCart(prev => {
       const exists = prev.find(item => item.id === pendingItem.id);
       if (exists) {
-        return prev.map(item => item.id === pendingItem.id ? { ...item, quantity: item.quantity + pendingQuantity, price: pendingPrice } : item);
+        return prev.map(item => item.id === pendingItem.id ? { ...item, quantity: item.quantity + pendingQuantity, price: pendingPrice, regularPrice, isCustomPrice } : item);
       }
-      return [...prev, { ...pendingItem, price: pendingPrice, quantity: pendingQuantity, discount: 0, note: '' }];
+      return [...prev, { ...pendingItem, price: pendingPrice, regularPrice, isCustomPrice, quantity: pendingQuantity, discount: 0, note: '' }];
     });
     
     setPendingItem(null);
@@ -276,6 +345,7 @@ const POSInterface: React.FC<POSInterfaceProps> = ({ salesHistory, setSalesHisto
         items: [...cart],
         total,
         client: clientName,
+        customerId: selectedCustomerId || null,
         clientRnc,
         ncf: generatedNcf,
         invoiceType,
@@ -285,7 +355,8 @@ const POSInterface: React.FC<POSInterfaceProps> = ({ salesHistory, setSalesHisto
         voucherDocument: isVoucherMode ? voucherDocument : null,
         mechanicId: selectedMechanic || null,
         priceLevel,
-        date: saleDate,
+        // Solo el comprobante elige fecha; el POS puede llevar abierto desde ayer.
+        date: isVoucherMode ? saleDate : toDayKey(new Date()),
         time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
       };
       setSalesHistory([newSale, ...salesHistory]);
@@ -332,9 +403,11 @@ const POSInterface: React.FC<POSInterfaceProps> = ({ salesHistory, setSalesHisto
   };
 
   const finishSale = () => {
+    setSelectedMechanic('');
     setCart([]);
     setQuickCash(null);
     setClientName('');
+    setSelectedCustomerId('');
     setClientRnc('');
     setInvoiceType('ticket');
     setClientAddress('');
@@ -582,15 +655,68 @@ const POSInterface: React.FC<POSInterfaceProps> = ({ salesHistory, setSalesHisto
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '16px', minHeight: 0, paddingRight: '8px', overflowY: 'auto' }}>
         
         {/* SECCIÓN 1: Datos Generales */}
-        <div className="card" style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px', flexShrink: 0 }}>
+        <div className="card" style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px', flexShrink: 0, position: 'relative', zIndex: 60 }}>
           <h3 style={{ fontSize: '1.1rem', fontWeight: 700, margin: '0 0 4px 0', color: 'var(--text-primary)', borderBottom: '1px solid var(--border-light)', paddingBottom: '8px' }}>
             Datos del Comprobante
           </h3>
           
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px' }}>
-            <div>
+            <div style={{ position: 'relative' }}>
               <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '4px' }}>Nombre del Cliente (Opcional)</label>
-              <input type="text" placeholder="Público General" value={clientName} onChange={e => setClientName(e.target.value)} style={{ width: '100%', padding: '8px 12px', borderRadius: '4px', border: '1px solid var(--border-medium)', background: 'var(--bg-app)', color: 'var(--text-primary)', outline: 'none' }} />
+              <input
+                type="text"
+                placeholder="Público General"
+                value={clientName}
+                onChange={e => {
+                  setClientName(e.target.value);
+                  setSelectedCustomerId('');
+                  setShowCustomerList(true);
+                }}
+                onFocus={() => setShowCustomerList(true)}
+                onBlur={() => setShowCustomerList(false)}
+                onKeyDown={e => {
+                  if (!showCustomerList || customerSuggestions.length === 0 || selectedCustomerId) return;
+                  // Sin esto, Enter abriría el cobro y Escape vaciaría el carrito.
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    selectCustomer(customerSuggestions[0]);
+                  } else if (e.key === 'Escape') {
+                    e.stopPropagation();
+                    setShowCustomerList(false);
+                  }
+                }}
+                style={{ width: '100%', padding: '8px 12px', borderRadius: '4px', border: '1px solid var(--border-medium)', background: 'var(--bg-app)', color: 'var(--text-primary)', outline: 'none' }}
+              />
+              {showCustomerList && !selectedCustomerId && customerSuggestions.length > 0 && (
+                <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, marginTop: '4px', zIndex: 10, background: 'var(--bg-card)', border: '1px solid var(--border-medium)', borderRadius: '8px', boxShadow: 'var(--shadow-lg)', overflow: 'hidden' }}>
+                  {customerSuggestions.map(customer => {
+                    const priceCount = Object.keys(customer.customPrices || {}).length;
+                    return (
+                      <div
+                        key={customer.id}
+                        // onMouseDown se dispara antes del blur que cierra la lista.
+                        onMouseDown={e => { e.preventDefault(); selectCustomer(customer); }}
+                        onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-app)'}
+                        onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                        style={{ padding: '8px 12px', cursor: 'pointer', borderBottom: '1px solid var(--border-light)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px' }}
+                      >
+                        <div style={{ minWidth: 0 }}>
+                          <div style={{ fontWeight: 600, fontSize: '0.875rem' }}>{customer.name}</div>
+                          <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{customer.documentId}</div>
+                        </div>
+                        {priceCount > 0 && <CustomPriceBadge />}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+              {selectedCustomer && (
+                <div style={{ marginTop: '4px', fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  Cliente registrado
+                  {customPriceCount > 0 && <span style={{ color: 'var(--accent-success)', fontWeight: 700 }}>· {customPriceCount} precio(s) único(s)</span>}
+                </div>
+              )}
             </div>
             <div style={{ position: 'relative' }}>
               <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '4px' }}>RNC / Cédula (Opcional)</label>
@@ -602,10 +728,18 @@ const POSInterface: React.FC<POSInterfaceProps> = ({ salesHistory, setSalesHisto
                   const val = e.target.value;
                   setClientRnc(val);
                   const clean = val.replace(/[^0-9]/g, '');
+                  const registered = clean.length >= 9
+                    ? customers.find(c => (c.documentId || '').replace(/[^0-9]/g, '') === clean)
+                    : null;
+                  if (registered) {
+                    selectCustomer(registered);
+                    return;
+                  }
+                  setSelectedCustomerId('');
                   if (clean.length === 9 || clean.length === 11) {
                     lookupRnc(clean);
                   }
-                }} 
+                }}
                 style={{ width: '100%', padding: '8px 12px', borderRadius: '4px', border: `1px solid ${invoiceType === 'credito' && !clientRnc ? 'var(--accent-danger)' : 'var(--border-medium)'}`, background: 'var(--bg-app)', color: 'var(--text-primary)', outline: 'none' }} 
               />
               {isSearchingRnc && <div style={{ position: 'absolute', right: '10px', top: '28px', fontSize: '10px', color: 'var(--accent-primary)' }}>Buscando...</div>}
@@ -668,6 +802,7 @@ const POSInterface: React.FC<POSInterfaceProps> = ({ salesHistory, setSalesHisto
             </div>
 
             {/* Mecánico Asignado */}
+            {hasFeature('mechanics') && (
             <div>
               <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '8px' }}>Mecánico Asignado</label>
               <div style={{ display: 'flex', gap: '8px', overflowX: 'auto', paddingBottom: '4px', scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
@@ -718,6 +853,7 @@ const POSInterface: React.FC<POSInterfaceProps> = ({ salesHistory, setSalesHisto
                 ))}
               </div>
             </div>
+            )}
 
             {/* Nota / Dirección */}
             {isVoucherMode && (
@@ -767,15 +903,22 @@ const POSInterface: React.FC<POSInterfaceProps> = ({ salesHistory, setSalesHisto
               </div>
               
               <div style={{ width: '120px' }}>
-                <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: '4px' }}>Precio Unit.</label>
-                <input 
-                  type="number" 
-                  min="0"
-                  step="0.01" 
-                  value={pendingPrice}
-                  onChange={e => setPendingPrice(parseFloat(e.target.value) || 0)}
-                  style={{ width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid var(--border-medium)', background: 'var(--bg-app)', textAlign: 'right', fontWeight: 700 }}
-                />
+                {(() => {
+                  const hasCustomPrice = pendingItem !== null && getCustomPrice(pendingItem) === pendingPrice;
+                  return (
+                    <>
+                      <label style={{ fontSize: '0.75rem', fontWeight: 600, color: hasCustomPrice ? 'var(--accent-success)' : 'var(--text-secondary)', display: 'block', marginBottom: '4px' }}>{hasCustomPrice ? 'Precio Único' : 'Precio Unit.'}</label>
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={pendingPrice}
+                        onChange={e => setPendingPrice(parseFloat(e.target.value) || 0)}
+                        style={{ width: '100%', padding: '10px', borderRadius: '4px', border: `1px solid ${hasCustomPrice ? 'var(--accent-success)' : 'var(--border-medium)'}`, background: 'var(--bg-app)', textAlign: 'right', fontWeight: 700 }}
+                      />
+                    </>
+                  );
+                })()}
               </div>
 
               <div style={{ width: '100px' }}>
@@ -823,10 +966,13 @@ const POSInterface: React.FC<POSInterfaceProps> = ({ salesHistory, setSalesHisto
                   >
                     <div>
                       <div style={{ fontWeight: 700 }}>{product.name}</div>
-                      <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Cod: {product.barcode || 'N/A'} | Stock: {product.stock || 0}</div>
+                      <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{getLocationLabel(product)} | Stock: {product.stock || 0}</div>
                     </div>
-                    <div style={{ fontWeight: 800, color: 'var(--accent-primary)' }}>
-                      {currency}{product.price.toFixed(2)}
+                    <div style={{ textAlign: 'right', flexShrink: 0, marginLeft: '12px' }}>
+                      <div style={{ fontWeight: 800, color: 'var(--accent-primary)' }}>
+                        {currency}{getPrice(product, priceLevel).toFixed(2)}
+                      </div>
+                      {getCustomPrice(product) !== null && <CustomPriceBadge />}
                     </div>
                   </div>
                 ))
@@ -855,7 +1001,7 @@ const POSInterface: React.FC<POSInterfaceProps> = ({ salesHistory, setSalesHisto
                 <thead style={{ background: 'var(--bg-card)', position: 'sticky', top: 0, zIndex: 10 }}>
                   <tr>
                     <th style={{ padding: '8px 12px', borderBottom: '2px solid var(--border-medium)', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Sec</th>
-                    <th style={{ padding: '8px 12px', borderBottom: '2px solid var(--border-medium)', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>ID / Cód</th>
+                    <th style={{ padding: '8px 12px', borderBottom: '2px solid var(--border-medium)', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Ubicación</th>
                     <th style={{ padding: '8px 12px', borderBottom: '2px solid var(--border-medium)', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Nombre del Artículo</th>
                     <th style={{ padding: '8px 12px', borderBottom: '2px solid var(--border-medium)', fontSize: '0.8rem', color: 'var(--text-secondary)', textAlign: 'center' }}>Cantidad</th>
                     <th style={{ padding: '8px 12px', borderBottom: '2px solid var(--border-medium)', fontSize: '0.8rem', color: 'var(--text-secondary)', textAlign: 'right' }}>Precio Unit.</th>
@@ -877,8 +1023,11 @@ const POSInterface: React.FC<POSInterfaceProps> = ({ salesHistory, setSalesHisto
                       return (
                         <tr key={item.id} style={{ borderBottom: '1px solid var(--border-light)', background: index % 2 === 0 ? 'transparent' : 'var(--bg-app)' }}>
                           <td style={{ padding: '6px 12px', fontWeight: 600, color: 'var(--text-secondary)', fontSize: '0.85rem' }}>{index + 1}</td>
-                          <td style={{ padding: '6px 12px', fontSize: '0.85rem' }}>{item.barcode || item.id.substring(0,6)}</td>
-                          <td style={{ padding: '6px 12px', fontWeight: 600, fontSize: '0.85rem' }}>{item.name}</td>
+                          <td style={{ padding: '6px 12px', fontSize: '0.85rem' }}>{getLocationLabel(item)}</td>
+                          <td style={{ padding: '6px 12px', fontWeight: 600, fontSize: '0.85rem' }}>
+                            {item.name}
+                            {item.isCustomPrice && <span style={{ marginLeft: '6px' }}><CustomPriceBadge /></span>}
+                          </td>
                           <td style={{ padding: '6px 12px', textAlign: 'center' }}>
                             <div style={{ display: 'inline-flex', alignItems: 'center', background: 'var(--bg-app)', border: '1px solid var(--border-medium)', borderRadius: '4px' }}>
                               <button onClick={() => updateQuantity(item.id, -1)} style={{ background: 'transparent', border: 'none', padding: '2px 6px', cursor: 'pointer' }}><Minus size={10} /></button>
@@ -886,7 +1035,12 @@ const POSInterface: React.FC<POSInterfaceProps> = ({ salesHistory, setSalesHisto
                               <button onClick={() => updateQuantity(item.id, 1)} style={{ background: 'transparent', border: 'none', padding: '2px 6px', cursor: 'pointer' }}><Plus size={10} /></button>
                             </div>
                           </td>
-                          <td style={{ padding: '6px 12px', textAlign: 'right', fontSize: '0.85rem' }}>{currency}{item.price.toFixed(2)}</td>
+                          <td style={{ padding: '6px 12px', textAlign: 'right', fontSize: '0.85rem' }}>
+                            {currency}{item.price.toFixed(2)}
+                            {item.isCustomPrice && item.regularPrice !== item.price && (
+                              <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textDecoration: 'line-through' }}>{currency}{item.regularPrice.toFixed(2)}</div>
+                            )}
+                          </td>
                           <td style={{ padding: '6px 12px', textAlign: 'right', fontWeight: 700, color: 'var(--accent-primary)', fontSize: '0.9rem' }}>{currency}{itemTotal.toFixed(2)}</td>
                           <td style={{ padding: '6px 12px', textAlign: 'center' }}>
                             <button onClick={() => handleRemove(item.id)} style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--accent-danger)' }} title="Eliminar"><Trash2 size={16} /></button>
@@ -963,6 +1117,11 @@ const POSInterface: React.FC<POSInterfaceProps> = ({ salesHistory, setSalesHisto
                 <div style={{ textAlign: 'center', marginBottom: '20px', padding: '16px', background: 'var(--bg-card)', borderRadius: '12px', border: '1px solid var(--border-light)' }}>
                   <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', marginBottom: '4px', marginTop: 0 }}>Total a Pagar</p>
                   <p style={{ fontSize: '2.5rem', fontWeight: 800, color: 'var(--accent-primary)', margin: 0 }}>{currency}{total.toFixed(2)}</p>
+                  {cart.some(item => item.isCustomPrice) && (
+                    <p style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--accent-success)', margin: '4px 0 0' }}>
+                      Incluye {cart.filter(item => item.isCustomPrice).length} precio(s) único(s) de {clientName}
+                    </p>
+                  )}
                 </div>
 
                 <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: '8px' }}>Método de Pago</label>

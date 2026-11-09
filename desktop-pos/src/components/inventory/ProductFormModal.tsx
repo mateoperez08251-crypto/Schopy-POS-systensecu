@@ -1,6 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { X, Save } from 'lucide-react';
+import { X, Save, Barcode, RefreshCw } from 'lucide-react';
+import SupplierSelect from '../suppliers/SupplierSelect';
+import { generateUniqueBarcode } from '../../utils/barcodeUtils';
+import { createScanDetector } from '../../utils/scanDetector';
+import { useBusiness } from '../../context/BusinessContext';
+import { getCategoriesStorageKey, predictCategory } from '../../config/businessTypes';
 
 export interface Product {
   id?: string;
@@ -24,23 +29,27 @@ export interface Product {
 interface ProductFormModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (product: any) => void;
+  onSave: (product: any) => Promise<boolean | void> | boolean | void;
   initialData?: Product | null;
   suppliers?: any[];
+  existingCodes?: string[];
+  onOpenBarcodeModal?: (productDraft: any) => void;
 }
 
-const DEFAULT_CATEGORIES = ['Frenos', 'Suspensión y Dirección', 'Motor', 'Eléctrico', 'Líquidos y Lubricantes', 'Accesorios', 'Gomas', 'Tubos'];
-
-const ProductFormModal: React.FC<ProductFormModalProps> = ({ isOpen, onClose, onSave, initialData, suppliers = [] }) => {
+const ProductFormModal: React.FC<ProductFormModalProps> = ({ isOpen, onClose, onSave, initialData, suppliers = [], existingCodes = [], onOpenBarcodeModal }) => {
+  const { config } = useBusiness();
+  const categoriesKey = getCategoriesStorageKey(config.id);
+  const productLabel = config.labels.product;
   const [isCategoryOpen, setIsCategoryOpen] = useState(false);
   const [categories, setCategories] = useState<string[]>([]);
   const [newCategory, setNewCategory] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [formData, setFormData] = useState<Product>({
     name: '',
     code: '',
     referenceCode: '',
-    category: 'Frenos',
+    category: config.defaultCategories[0],
     supplier: '',
     price: '',
     priceFrequent: '',
@@ -55,14 +64,14 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({ isOpen, onClose, on
   });
 
   useEffect(() => {
-    const savedCats = localStorage.getItem('inventoryCategories');
-    let loadedCats = DEFAULT_CATEGORIES;
+    const savedCats = localStorage.getItem(categoriesKey);
+    let loadedCats = config.defaultCategories;
     if (savedCats) {
       try {
         loadedCats = JSON.parse(savedCats);
       } catch (e) {}
     } else {
-      localStorage.setItem('inventoryCategories', JSON.stringify(DEFAULT_CATEGORIES));
+      localStorage.setItem(categoriesKey, JSON.stringify(config.defaultCategories));
     }
     setCategories(loadedCats);
 
@@ -73,7 +82,7 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({ isOpen, onClose, on
         name: '',
         code: '',
         referenceCode: '',
-        category: loadedCats.length > 0 ? loadedCats[0] : 'Frenos',
+        category: loadedCats.length > 0 ? loadedCats[0] : config.defaultCategories[0],
         supplier: '',
         price: '',
         priceFrequent: '',
@@ -89,26 +98,81 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({ isOpen, onClose, on
     }
   }, [initialData, isOpen]);
 
-  if (!isOpen) return null;
+  const formDataRef = useRef(formData);
+  formDataRef.current = formData;
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    // Normalizar datos (vacío -> 0)
-    const normalizedProduct = {
-      ...formData,
-      referenceCode: formData.referenceCode || '',
-      price: Number(formData.price) || 0,
-      priceFrequent: Number(formData.priceFrequent) || 0,
-      priceWholesale: Number(formData.priceWholesale) || 0,
-      costPrice: Number(formData.costPrice) || 0,
-      stock: Number(formData.stock) || 0,
-      minStock: Number(formData.minStock) || 0,
-      unitsPerPackage: Number(formData.unitsPerPackage) || 1
+  // Con el formulario abierto, el lector llena el código sin importar dónde esté el cursor.
+  useEffect(() => {
+    if (!isOpen) return;
+    const detector = createScanDetector();
+    let formBeforeScan: Product | null = null;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.repeat || e.ctrlKey || e.altKey || e.metaKey) return;
+      const { isFirstKey, code } = detector.push(e.key, e.timeStamp);
+      if (isFirstKey) formBeforeScan = formDataRef.current;
+      // Al editar un producto existente, un escaneo no debe cambiarle el código.
+      if (code && formBeforeScan && !formBeforeScan.id) {
+        e.preventDefault(); // Sin esto, el Enter del lector guardaría el producto.
+        e.stopPropagation();
+        // Volver al estado previo quita lo que el lector tecleó en el campo enfocado.
+        setFormData({ ...formBeforeScan, code });
+      }
     };
 
-    onSave(normalizedProduct);
-    onClose();
+    window.addEventListener('keydown', handleKeyDown, true);
+    return () => window.removeEventListener('keydown', handleKeyDown, true);
+  }, [isOpen]);
+
+  if (!isOpen) return null;
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+    
+    try {
+      const safeNum = (v: any, fallback = 0) => {
+        if (v === '' || v === null || v === undefined) return fallback;
+        const parsed = typeof v === 'number' ? v : parseFloat(String(v).replace(',', '.'));
+        return isNaN(parsed) ? fallback : parsed;
+      };
+
+      // Normalizar datos completos evitando campos undefined que rechazaría Firestore
+      const normalizedProduct: any = {
+        ...formData,
+        name: (formData.name || '').trim(),
+        code: (formData.code || '').trim(),
+        referenceCode: (formData.referenceCode || '').trim(),
+        category: formData.category || 'General',
+        supplier: formData.supplier || '',
+        price: safeNum(formData.price, 0),
+        priceFrequent: safeNum(formData.priceFrequent, 0),
+        priceWholesale: safeNum(formData.priceWholesale, 0),
+        costPrice: safeNum(formData.costPrice, 0),
+        stock: safeNum(formData.stock, 0),
+        minStock: safeNum(formData.minStock, 5),
+        expirationDate: formData.expirationDate || '',
+        location: (formData.location || '').trim(),
+        imageUrl: formData.imageUrl || '',
+        unitsPerPackage: safeNum(formData.unitsPerPackage, 1)
+      };
+
+      if (formData.id) {
+        normalizedProduct.id = formData.id;
+      } else {
+        delete normalizedProduct.id;
+      }
+
+      const result = await onSave(normalizedProduct);
+      // Solo cerrar el modal si el guardado NO falló (evita que el usuario pierda lo que escribió)
+      if (result !== false) {
+        onClose();
+      }
+    } catch (err) {
+      console.error("Error al procesar y guardar producto:", err);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleAddCategory = (e: React.MouseEvent) => {
@@ -116,7 +180,7 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({ isOpen, onClose, on
     if (newCategory.trim() && !categories.includes(newCategory.trim())) {
       const updated = [...categories, newCategory.trim()];
       setCategories(updated);
-      localStorage.setItem('inventoryCategories', JSON.stringify(updated));
+      localStorage.setItem(categoriesKey, JSON.stringify(updated));
       setFormData({...formData, category: newCategory.trim()});
       setNewCategory('');
       setIsCategoryOpen(false);
@@ -128,7 +192,7 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({ isOpen, onClose, on
     if (window.confirm(`¿Eliminar la categoría "${catToRemove}"?`)) {
       const updated = categories.filter(c => c !== catToRemove);
       setCategories(updated);
-      localStorage.setItem('inventoryCategories', JSON.stringify(updated));
+      localStorage.setItem(categoriesKey, JSON.stringify(updated));
       if (formData.category === catToRemove) {
         setFormData({...formData, category: updated[0] || ''});
       }
@@ -136,23 +200,7 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({ isOpen, onClose, on
   };
 
   const handleNameChange = (newName: string) => {
-    let predictedCategory = formData.category;
-    const lowerName = newName.toLowerCase();
-
-    // Heurísticas enfocadas en repuestos automotrices
-    if (lowerName.includes('pastilla') || lowerName.includes('disco') || lowerName.includes('balata') || lowerName.includes('freno')) {
-      predictedCategory = 'Frenos';
-    } else if (lowerName.includes('amortiguador') || lowerName.includes('rotula') || lowerName.includes('buje')) {
-      predictedCategory = 'Suspensión y Dirección';
-    } else if (lowerName.includes('bujia') || lowerName.includes('piston') || lowerName.includes('correa') || lowerName.includes('valvula')) {
-      predictedCategory = 'Motor';
-    } else if (lowerName.includes('aceite') || lowerName.includes('refrigerante') || lowerName.includes('anticongelante')) {
-      predictedCategory = 'Líquidos y Lubricantes';
-    } else if (lowerName.includes('foco') || lowerName.includes('bateria') || lowerName.includes('alternador') || lowerName.includes('sensor')) {
-      predictedCategory = 'Eléctrico';
-    }
-
-    setFormData({...formData, name: newName, category: predictedCategory});
+    setFormData({ ...formData, name: newName, category: predictCategory(config, newName, formData.category) });
   };
 
   const parseNumberInput = (value: string) => {
@@ -167,7 +215,7 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({ isOpen, onClose, on
         {/* Header */}
         <div style={{ padding: '20px 24px', borderBottom: '1px solid var(--border-medium)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--bg-app)' }}>
           <h2 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 800 }}>
-            {initialData ? 'Editar Repuesto' : 'Nuevo Repuesto'}
+            {initialData ? `Editar ${productLabel}` : `Nuevo ${productLabel}`}
           </h2>
           <button type="button" className="btn btn-outline" onClick={onClose} style={{ padding: '6px', border: 'none' }}>
             <X size={20} />
@@ -180,13 +228,13 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({ isOpen, onClose, on
             
             {/* Nombre del Producto */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '8px' }}>
-              <label style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Nombre del Repuesto</label>
+              <label style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Nombre del {productLabel}</label>
               <input 
                 type="text" 
                 required
                 value={formData.name}
                 onChange={e => handleNameChange(e.target.value)}
-                placeholder="Ej. Pastillas de Freno Cerámicas"
+                placeholder={`Ej. ${config.labels.productExample}`}
                 style={{ background: 'var(--bg-app)', border: '1px solid var(--border-medium)', color: 'var(--text-primary)', padding: '10px 12px', borderRadius: 'var(--radius-md)', outline: 'none' }} 
               />
             </div>
@@ -194,7 +242,17 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({ isOpen, onClose, on
             {/* Código + Código Referencia + Categoría */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                <label style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Código (SKU/Barras)</label>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <label style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Código (SKU/Barras)</label>
+                  <button
+                    type="button"
+                    onClick={() => setFormData({ ...formData, code: generateUniqueBarcode(existingCodes, 'CODE128') })}
+                    style={{ background: 'none', border: 'none', color: 'var(--accent-primary)', fontSize: '0.75rem', fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                    title="Generar código único automáticamente"
+                  >
+                    <RefreshCw size={12} /> Generar
+                  </button>
+                </div>
                 <input 
                   type="text" 
                   required
@@ -322,18 +380,11 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({ isOpen, onClose, on
             {/* Suplidor */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '8px' }}>
               <label style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Suplidor / Proveedor (Opcional)</label>
-              <select 
+              <SupplierSelect
                 value={formData.supplier || ''}
-                onChange={e => setFormData({...formData, supplier: e.target.value})}
-                style={{ background: 'var(--bg-app)', border: '1px solid var(--border-medium)', color: 'var(--text-primary)', padding: '10px 12px', borderRadius: 'var(--radius-md)', outline: 'none' }} 
-              >
-                <option value="">Seleccione un proveedor...</option>
-                {suppliers.map(sup => (
-                  <option key={sup.id} value={sup.name}>
-                    {sup.name} {sup.rnc ? `(RNC: ${sup.rnc})` : ''} {sup.phone ? `- Tel: ${sup.phone}` : ''}
-                  </option>
-                ))}
-              </select>
+                suppliers={suppliers}
+                onChange={supplier => setFormData({...formData, supplier})}
+              />
             </div>
 
             {/* PRECIOS Y COSTO */}
@@ -378,7 +429,7 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({ isOpen, onClose, on
                   />
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                  <label style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Mayorista / Talleres ($)</label>
+                  <label style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)' }}>{config.labels.wholesalePrice} ($)</label>
                   <input 
                     type="number" step="0.01" min="0"
                     value={formData.priceWholesale}
@@ -465,13 +516,28 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({ isOpen, onClose, on
         </div>
 
         {/* Footer */}
-        <div style={{ padding: '16px 24px', borderTop: '1px solid var(--border-medium)', display: 'flex', justifyContent: 'flex-end', gap: '12px', background: 'var(--bg-app)' }}>
-          <button type="button" className="btn btn-outline" onClick={onClose}>
-            Cancelar
-          </button>
-          <button type="submit" form="product-form" className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <Save size={18} /> {initialData ? 'Guardar Cambios' : 'Agregar Repuesto'}
-          </button>
+        <div style={{ padding: '16px 24px', borderTop: '1px solid var(--border-medium)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', background: 'var(--bg-app)' }}>
+          <div>
+            {onOpenBarcodeModal && (
+              <button
+                type="button"
+                className="btn btn-outline"
+                onClick={() => onOpenBarcodeModal(formData)}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', color: 'var(--accent-primary)', borderColor: 'var(--accent-primary)', fontWeight: 600 }}
+                title="Abrir creador de etiquetas térmicas con este nombre y código"
+              >
+                <Barcode size={17} /> Etiqueta Térmica
+              </button>
+            )}
+          </div>
+          <div style={{ display: 'flex', gap: '12px' }}>
+            <button type="button" className="btn btn-outline" onClick={onClose} disabled={isSubmitting}>
+              Cancelar
+            </button>
+            <button type="submit" form="product-form" className="btn btn-primary" disabled={isSubmitting} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Save size={18} /> {isSubmitting ? 'Guardando...' : (initialData ? 'Guardar Cambios' : `Agregar ${productLabel}`)}
+            </button>
+          </div>
         </div>
 
       </div>

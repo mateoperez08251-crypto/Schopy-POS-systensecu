@@ -13,8 +13,8 @@ const ConfirmDeleteModal: React.FC<ConfirmDeleteModalProps> = ({ isOpen, onClose
   if (!isOpen) return null;
 
   return createPortal(
-    <div className="checkout-modal-overlay" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 99999, padding: '24px' }} onClick={onClose}>
-      <div className="card" style={{ width: '100%', maxWidth: '400px', display: 'flex', flexDirection: 'column', padding: '24px', textAlign: 'center', gap: '16px' }} onClick={e => e.stopPropagation()}>
+    <div className="modal-overlay checkout-modal-overlay" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 99999, padding: '24px' }} onClick={onClose}>
+      <div className="card checkout-modal" style={{ width: '100%', maxWidth: '400px', display: 'flex', flexDirection: 'column', padding: '24px', textAlign: 'center', gap: '16px' }} onClick={e => e.stopPropagation()}>
         
         <div style={{ margin: '0 auto', background: 'rgba(239, 68, 68, 0.1)', padding: '16px', borderRadius: '50%' }}>
           <AlertTriangle size={32} color="var(--accent-danger)" />

@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Search, Clock, Receipt, Printer, Calendar as CalendarIcon, Download, Edit, ShoppingCart } from 'lucide-react';
+import { smartSearch } from '../utils/searchEngine';
 
 interface SalesHistoryProps {
   salesHistory: any[];
@@ -24,12 +25,13 @@ const SalesHistory: React.FC<SalesHistoryProps> = ({ salesHistory }) => {
   const [dateTo, setDateTo] = useState('');
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   
-  const filteredSales = salesHistory.filter(sale => {
-    const clientName = sale.client || 'Público en General';
-    const matchesSearch = sale.id.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                          clientName.toLowerCase().includes(searchTerm.toLowerCase());
-    return matchesSearch;
-  });
+  const filteredSales = useMemo(() => {
+    let result = salesHistory;
+    if (searchTerm) {
+      result = smartSearch(result, searchTerm, ['id', 'client', 'paymentMethod']);
+    }
+    return result;
+  }, [salesHistory, searchTerm]);
 
   const handleSelect = (id: string) => {
     setSelectedIds(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]);

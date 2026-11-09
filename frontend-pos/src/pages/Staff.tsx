@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Search, Plus, MoreVertical, Shield, User, Mail, Calendar, Key } from 'lucide-react';
+import { smartSearch } from '../utils/searchEngine';
 import { useAuth } from '../context/AuthContext';
 import { subscribeToStaff, createCashier, deleteCashier } from '../firebase/staffService';
 import { createPortal } from 'react-dom';
@@ -132,10 +133,10 @@ const Staff = ({ showToast }: { showToast?: (m: string, t?: 'success'|'error'|'i
     }
   };
 
-  const filteredStaff = staffList.filter(s => 
-    s.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    s.email?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredStaff = useMemo(() => {
+    if (!searchTerm) return staffList;
+    return smartSearch(staffList, searchTerm, ['name', 'email']);
+  }, [staffList, searchTerm]);
 
   return (
     <div style={{ padding: '24px', maxWidth: '1200px', margin: '0 auto', width: '100%' }}>

@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Search, Plus, Filter, MoreVertical, Building2, Mail, Phone, MapPin, Truck } from 'lucide-react';
+import { smartSearch } from '../utils/searchEngine';
 import SupplierFormModal from '../components/suppliers/SupplierFormModal';
 
 const Suppliers = ({ suppliers, setSuppliers, showToast }: { suppliers: any[], setSuppliers: (sups: any[]) => void, showToast?: (m: string, t?: 'success'|'error') => void }) => {
@@ -22,10 +23,10 @@ const Suppliers = ({ suppliers, setSuppliers, showToast }: { suppliers: any[], s
     setIsModalOpen(false);
   };
 
-  const filteredSuppliers = suppliers.filter(s => 
-    s.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    s.contact.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredSuppliers = useMemo(() => {
+    if (!searchTerm) return suppliers;
+    return smartSearch(suppliers, searchTerm, ['name', 'contact', 'phone', 'email', 'category']);
+  }, [suppliers, searchTerm]);
 
   return (
     <div style={{ padding: '24px', maxWidth: '1200px', margin: '0 auto', width: '100%' }}>

@@ -25,13 +25,13 @@ const CustomerFormModal: React.FC<CustomerFormModalProps> = ({ isOpen, onClose, 
   };
 
   return (
-    <div style={{
+    <div className="modal-overlay checkout-modal-overlay" style={{
       position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-      background: 'rgba(0, 0, 0, 0.4)', backdropFilter: 'blur(4px)',
+      background: 'rgba(0, 0, 0, 0.6)', backdropFilter: 'blur(4px)',
       display: 'flex', justifyContent: 'center', alignItems: 'center',
       zIndex: 9999
-    }}>
-      <div className="card animate-pop" style={{
+    }} onClick={onClose}>
+      <div className="card animate-pop" onClick={e => e.stopPropagation()} style={{
         width: '100%', maxWidth: '600px', background: 'var(--bg-card)',
         borderRadius: '24px', overflow: 'hidden', boxShadow: '0 20px 40px rgba(0,0,0,0.2)'
       }}>

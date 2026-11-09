@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import TopNav from "../components/TopNav";
 import { ShieldAlert, AlertTriangle, Search, Filter, Play, CheckCircle2, XCircle, Activity, Database, Clock } from "lucide-react";
+import { smartSearch } from "../utils/searchEngine";
 import VideoEvidenceModal from "../components/audit/VideoEvidenceModal";
 import { useAuth } from '../context/AuthContext';
 import { subscribeToAuditLogs, type AuditEvent } from '../firebase/auditService';
@@ -72,12 +73,16 @@ const Audit = () => {
     setSelectedIncident(null);
   };
 
-  const filteredIncidents = incidents.filter(inc => {
-    const matchSearch = inc.id.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                        inc.cashier.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchFilter = filter === "Todos" || inc.status === filter;
-    return matchSearch && matchFilter;
-  });
+  const filteredIncidents = useMemo(() => {
+    let result = incidents;
+    if (filter !== "Todos") {
+      result = result.filter(inc => inc.status === filter);
+    }
+    if (searchTerm) {
+      result = smartSearch(result, searchTerm, ['id', 'cashier', 'type', 'description']);
+    }
+    return result;
+  }, [incidents, searchTerm, filter]);
 
   return (
     <main className="main-content">

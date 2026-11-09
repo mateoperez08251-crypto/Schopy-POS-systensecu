@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import TopNav from '../components/TopNav';
 import { Search, Plus, Calendar, Filter, Truck, Edit, Trash2, ChevronDown, AlertTriangle } from 'lucide-react';
 import Fuse from 'fuse.js';
+import { smartSearch } from '../utils/searchEngine';
 import ProductFormModal from '../components/inventory/ProductFormModal';
 import ConfirmDeleteModal from '../components/inventory/ConfirmDeleteModal';
 import { useAuth } from '../context/AuthContext';
@@ -35,7 +36,16 @@ const Inventory = ({ inventory, setInventory, showToast }: { inventory: any[], s
   };
 
   const handleSaveProduct = async (productData: any) => {
-    if (!userData?.companyId) return;
+    const currentCompanyId = userData?.companyId || 'local';
+
+    const cleanCode = (productData.code || '').trim();
+    if (cleanCode !== '') {
+      const duplicate = inventory.find(p => (p.code || '').trim() === cleanCode && p.id !== productData.id);
+      if (duplicate) {
+        if (showToast) showToast(`El código de barras ya pertenece a: ${duplicate.name}`, 'error');
+        return;
+      }
+    }
 
     try {
       if (productData.id) {
@@ -44,12 +54,14 @@ const Inventory = ({ inventory, setInventory, showToast }: { inventory: any[], s
         if (showToast) showToast('Producto actualizado correctamente', 'success');
       } else {
         // Nuevo
-        await addInventoryItem(userData.companyId, productData);
+        await addInventoryItem(currentCompanyId, productData);
         if (showToast) showToast('Producto agregado exitosamente al inventario', 'success');
       }
       setIsModalOpen(false);
-    } catch (error) {
-      if (showToast) showToast('Error al guardar el producto', 'error');
+    } catch (error: any) {
+      console.error(error);
+      const msg = error?.message ? `Error: ${error.message}` : 'Error al guardar el producto';
+      if (showToast) showToast(msg, 'error');
     }
   };
 
@@ -84,9 +96,9 @@ const Inventory = ({ inventory, setInventory, showToast }: { inventory: any[], s
   const filteredInventory = useMemo(() => {
     let result = inventory;
 
-    // Filtro por proveedor
+    // Filtro por proveedor inteligente
     if (supplierTerm) {
-      result = result.filter(p => p.supplier.toLowerCase().includes(supplierTerm.toLowerCase()));
+      result = smartSearch(result, supplierTerm, ['supplier']);
     }
     
     // Filtro por fecha
@@ -125,14 +137,9 @@ const Inventory = ({ inventory, setInventory, showToast }: { inventory: any[], s
       }
     }
 
-    // Búsqueda inteligente (Fuzzy Search)
+    // Búsqueda inteligente ultra-rápida y tolerante a fallos ortográficos
     if (searchTerm) {
-      const fuse = new Fuse(result, {
-        keys: ['name', 'code'],
-        threshold: 0.4,
-        distance: 100,
-      });
-      result = fuse.search(searchTerm).map(r => r.item);
+      result = smartSearch(result, searchTerm, ['name', 'code', 'category', 'supplier']);
     }
 
     return result;

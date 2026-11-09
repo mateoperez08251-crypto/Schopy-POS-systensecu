@@ -72,8 +72,10 @@ const TopNav = ({ title = "" }: { title?: string }) => {
   }, [daysRemaining]);
 
   useEffect(() => {
-    // Revisar si ya está en modo oscuro
-    if (document.body.classList.contains('dark-mode')) {
+    // Revisar si ya está en modo oscuro (localStorage o clase existente)
+    const savedTheme = localStorage.getItem('schopy_theme');
+    if (savedTheme === 'dark' || document.body.classList.contains('dark-mode')) {
+      document.body.classList.add('dark-mode');
       setIsDarkMode(true);
     }
 
@@ -91,8 +93,15 @@ const TopNav = ({ title = "" }: { title?: string }) => {
   }, []);
 
   const toggleTheme = () => {
-    setIsDarkMode(!isDarkMode);
-    document.body.classList.toggle('dark-mode');
+    const nextDark = !isDarkMode;
+    setIsDarkMode(nextDark);
+    if (nextDark) {
+      document.body.classList.add('dark-mode');
+      localStorage.setItem('schopy_theme', 'dark');
+    } else {
+      document.body.classList.remove('dark-mode');
+      localStorage.setItem('schopy_theme', 'light');
+    }
   };
 
   // Determinar ícono y título dinámico según la ruta
@@ -317,13 +326,13 @@ const TopNav = ({ title = "" }: { title?: string }) => {
 
       {/* Subscription Warning Modal */}
       {showSubscriptionWarning && (
-        <div style={{
+        <div className="modal-overlay checkout-modal-overlay" style={{
           position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
           background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           zIndex: 9999
-        }}>
-          <div style={{
+        }} onClick={() => setShowSubscriptionWarning(false)}>
+          <div className="card" onClick={e => e.stopPropagation()} style={{
             background: 'var(--bg-card)', width: '90%', maxWidth: '400px',
             borderRadius: '16px', padding: '32px', position: 'relative',
             border: '1px solid var(--accent-danger)', boxShadow: '0 20px 40px rgba(0,0,0,0.5)',

@@ -411,7 +411,7 @@ const Dashboard = () => {
                   <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: 'var(--text-muted)' }} tickFormatter={(v) => `${Math.round(v/1000)}k`} />
                   <RechartsTooltip 
                     cursor={{ fill: 'var(--bg-app)' }} 
-                    formatter={(value: number) => [`$${value.toLocaleString()}`, '']}
+                    formatter={(value: any) => [`$${Number(value || 0).toLocaleString()}`, '']}
                     contentStyle={{ background: 'var(--bg-card)', border: '1px solid var(--border-medium)', borderRadius: '8px', fontSize: '0.85rem' }}
                   />
                   <Bar dataKey="ingresos" fill="#6366F1" radius={[4, 4, 0, 0]} name="Ingresos" />

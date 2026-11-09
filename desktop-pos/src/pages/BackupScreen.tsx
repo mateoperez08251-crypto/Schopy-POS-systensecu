@@ -1,13 +1,19 @@
 import React, { useState, useEffect } from 'react';
-import { CloudUpload, Download, ShieldCheck, AlertTriangle, X } from 'lucide-react';
+import { CloudUpload, Download, ShieldCheck, AlertTriangle, X, CheckCircle2, FileDown, RefreshCw, Database } from 'lucide-react';
 import { doc, setDoc, getDoc } from 'firebase/firestore';
 import { signInWithEmailAndPassword, onAuthStateChanged } from 'firebase/auth';
 import { db, auth } from '../firebase/config';
 import { useAuth } from '../context/AuthContext';
 import { getLocalData, saveLocalData } from '../services/localDb';
+import { 
+  performBackupNow, 
+  getLastBackupInfo, 
+  exportBackupAsJson, 
+  restoreFromSnapshot, 
+  BackupStats,
+  COLLECTIONS 
+} from '../services/autoBackup';
 import { createPortal } from 'react-dom';
-
-const COLLECTIONS = ['inventory', 'customers', 'sales', 'mechanics', 'staff', 'suppliers', 'receivings'];
 
 const FirebaseLoginModal = ({ isOpen, onClose, onLogin }: { isOpen: boolean, onClose: () => void, onLogin: () => void }) => {
   const [email, setEmail] = useState('');
@@ -84,18 +90,24 @@ const FirebaseLoginModal = ({ isOpen, onClose, onLogin }: { isOpen: boolean, onC
 };
 
 const BackupScreen = () => {
-  const { currentUser } = useAuth();
+  const { currentUser, companyId } = useAuth();
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState({ type: '', text: '' });
   
   const [isFirebaseUser, setIsFirebaseUser] = useState<boolean>(false);
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [pendingAction, setPendingAction] = useState<'backup' | 'restore' | null>(null);
+  const [backupStats, setBackupStats] = useState<BackupStats | null>(null);
 
-  // Usaremos un ID de compañía fijo o el ID del primer admin para el respaldo.
-  const backupId = 'local_store_backup'; 
+  const backupId = companyId || 'local_store_backup'; 
+
+  const refreshStats = () => {
+    const stats = getLastBackupInfo();
+    setBackupStats(stats);
+  };
 
   useEffect(() => {
+    refreshStats();
     const unsub = onAuthStateChanged(auth, (user) => {
       setIsFirebaseUser(!!user);
       if (user && showLoginModal) {
@@ -112,11 +124,6 @@ const BackupScreen = () => {
       setMessage({ type: 'error', text: 'Solo un administrador puede realizar copias de seguridad.' });
       return;
     }
-    if (!isFirebaseUser) {
-      setPendingAction('backup');
-      setShowLoginModal(true);
-      return;
-    }
     executeBackup();
   };
 
@@ -125,22 +132,16 @@ const BackupScreen = () => {
     setMessage({ type: '', text: '' });
 
     try {
-      const backupData: Record<string, any> = {};
-      
-      COLLECTIONS.forEach(collection => {
-        backupData[collection] = getLocalData(collection);
-      });
-
-      backupData.timestamp = new Date().toISOString();
-      backupData.backedUpBy = currentUser?.name || 'Admin';
-
-      const docRef = doc(db, 'backups', backupId);
-      await setDoc(docRef, backupData);
-
-      setMessage({ type: 'success', text: 'Copia de seguridad subida a la nube exitosamente.' });
+      const res = await performBackupNow(companyId || undefined, currentUser?.name);
+      refreshStats();
+      if (res.success) {
+        setMessage({ type: 'success', text: '¡Respaldo automático y en la nube completado exitosamente!' });
+      } else {
+        setMessage({ type: 'error', text: 'Hubo un error al generar el respaldo.' });
+      }
     } catch (error) {
-      console.error("Error al subir copia de seguridad:", error);
-      setMessage({ type: 'error', text: 'Ocurrió un error al subir los datos a la nube.' });
+      console.error("Error al realizar respaldo:", error);
+      setMessage({ type: 'error', text: 'Ocurrió un error al procesar el respaldo.' });
     }
 
     setLoading(false);
@@ -175,14 +176,9 @@ const BackupScreen = () => {
 
       if (docSnap.exists()) {
         const data = docSnap.data();
-        
-        COLLECTIONS.forEach(collection => {
-          if (data[collection]) {
-            saveLocalData(collection, data[collection]);
-          }
-        });
-
-        setMessage({ type: 'success', text: 'Datos restaurados exitosamente. Por favor, recarga la página para aplicar los cambios.' });
+        restoreFromSnapshot(data);
+        refreshStats();
+        setMessage({ type: 'success', text: 'Datos restaurados exitosamente. Por favor, reinicia o recarga la aplicación.' });
       } else {
         setMessage({ type: 'error', text: 'No se encontró ninguna copia de seguridad en la nube.' });
       }
@@ -195,22 +191,99 @@ const BackupScreen = () => {
     setPendingAction(null);
   };
 
+  const handleExportJson = () => {
+    const ok = exportBackupAsJson();
+    if (ok) {
+      setMessage({ type: 'success', text: 'Archivo de respaldo .JSON descargado a tu computadora.' });
+    } else {
+      setMessage({ type: 'error', text: 'No se pudo generar el archivo de descarga.' });
+    }
+  };
+
+  const handleRestoreLocalSnapshot = () => {
+    if (!window.confirm('¿Deseas restaurar la última copia automática local? Esto restaurará el último estado guardado en este equipo.')) {
+      return;
+    }
+    const raw = localStorage.getItem('schopy_auto_backup_latest');
+    if (!raw) {
+      setMessage({ type: 'error', text: 'No hay copia de seguridad local disponible para restaurar.' });
+      return;
+    }
+    try {
+      const parsed = JSON.parse(raw);
+      restoreFromSnapshot(parsed);
+      refreshStats();
+      setMessage({ type: 'success', text: 'Datos restaurados desde la copia local. Recarga la aplicación para visualizar los cambios.' });
+    } catch (e) {
+      setMessage({ type: 'error', text: 'El archivo de respaldo local está dañado.' });
+    }
+  };
+
   return (
-    <div style={{ padding: '24px', maxWidth: '800px', margin: '0 auto' }}>
+    <div style={{ padding: '24px', maxWidth: '900px', margin: '0 auto' }}>
+      
+      {/* Header */}
       <div style={{ marginBottom: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
         <div>
           <h1 style={{ fontSize: '1.75rem', fontWeight: 800, margin: 0, display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <CloudUpload size={28} color="var(--accent-primary)" /> Respaldo en la Nube
+            <Database size={28} color="var(--accent-primary)" /> Copia de Seguridad y Respaldo
           </h1>
-          <p style={{ color: 'var(--text-secondary)', margin: '4px 0 0 0' }}>Sincroniza y protege tus datos locales subiéndolos a Firebase.</p>
+          <p style={{ color: 'var(--text-secondary)', margin: '4px 0 0 0' }}>Tus datos se respaldan automáticamente de forma continua.</p>
         </div>
         
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 16px', borderRadius: '24px', background: isFirebaseUser ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)', color: isFirebaseUser ? 'var(--accent-success)' : 'var(--accent-danger)' }}>
           {isFirebaseUser ? <ShieldCheck size={18} /> : <AlertTriangle size={18} />}
           <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>
-            {isFirebaseUser ? 'Nube Conectada' : 'Nube Desconectada'}
+            {isFirebaseUser ? 'Nube Conectada' : 'Modo Respaldo Local'}
           </span>
         </div>
+      </div>
+
+      {/* Banner de Respaldo Automático Permanente */}
+      <div style={{
+        background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, rgba(99, 102, 241, 0.08) 100%)',
+        border: '1px solid rgba(16, 185, 129, 0.3)',
+        borderRadius: '16px',
+        padding: '20px 24px',
+        marginBottom: '24px',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        flexWrap: 'wrap',
+        gap: '16px'
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+          <div style={{
+            width: '48px', height: '48px', borderRadius: '12px',
+            background: 'var(--accent-success)', color: 'white',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            boxShadow: '0 4px 12px rgba(16, 185, 129, 0.3)'
+          }}>
+            <CheckCircle2 size={28} />
+          </div>
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 700 }}>Respaldo Automático Permanente Activo</h3>
+              <span style={{ 
+                fontSize: '0.75rem', fontWeight: 700, padding: '2px 8px', borderRadius: '12px', 
+                background: '#10B981', color: 'white', textTransform: 'uppercase' 
+              }}>SIEMPRE ENCENDIDO</span>
+            </div>
+            <p style={{ margin: '4px 0 0 0', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+              El sistema guarda automáticamente cada 5 minutos y después de cada venta o cambio en el inventario.
+            </p>
+          </div>
+        </div>
+
+        {backupStats && (
+          <div style={{ background: 'var(--bg-app)', padding: '8px 16px', borderRadius: '10px', border: '1px solid var(--border-medium)', fontSize: '0.85rem' }}>
+            <span style={{ color: 'var(--text-secondary)' }}>Último respaldo: </span>
+            <strong style={{ color: 'var(--accent-success)' }}>{backupStats.formattedDate}</strong>
+            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+              📦 {backupStats.inventoryCount} productos | 🧾 {backupStats.salesCount} ventas protegidas
+            </div>
+          </div>
+        )}
       </div>
 
       {message.text && (
@@ -228,16 +301,17 @@ const BackupScreen = () => {
         </div>
       )}
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
+      {/* Grid de Acciones */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '20px' }}>
         
-        {/* Tarjeta de Respaldo */}
+        {/* Tarjeta 1: Forzar Respaldo Manual Ahora */}
         <div className="card" style={{ padding: '24px', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-          <div style={{ width: '64px', height: '64px', borderRadius: '50%', background: 'rgba(99, 102, 241, 0.1)', color: 'var(--accent-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '16px' }}>
-            <CloudUpload size={32} />
+          <div style={{ width: '56px', height: '56px', borderRadius: '50%', background: 'rgba(99, 102, 241, 0.1)', color: 'var(--accent-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '16px' }}>
+            <RefreshCw size={28} />
           </div>
-          <h2 style={{ fontSize: '1.2rem', fontWeight: 700, marginBottom: '8px' }}>Subir a la Nube</h2>
-          <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: '24px', flex: 1 }}>
-            Guarda una copia segura de tu inventario, ventas, clientes y configuración en los servidores seguros.
+          <h2 style={{ fontSize: '1.15rem', fontWeight: 700, marginBottom: '8px' }}>Respaldar Ahora</h2>
+          <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginBottom: '20px', flex: 1 }}>
+            Guarda una instantánea inmediata tanto en tu equipo como en los servidores en la nube.
           </p>
           <button 
             onClick={handleBackup} 
@@ -245,18 +319,39 @@ const BackupScreen = () => {
             className="btn btn-primary" 
             style={{ width: '100%', display: 'flex', justifyContent: 'center', gap: '8px', padding: '12px' }}
           >
-            <CloudUpload size={18} /> {loading ? 'Procesando...' : 'Crear Respaldo Ahora'}
+            <CloudUpload size={18} /> {loading ? 'Respaldando...' : 'Respaldar Todo Ahora'}
           </button>
         </div>
 
-        {/* Tarjeta de Restauración */}
+        {/* Tarjeta 2: Descargar Respaldo JSON a la PC */}
         <div className="card" style={{ padding: '24px', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-          <div style={{ width: '64px', height: '64px', borderRadius: '50%', background: 'rgba(245, 158, 11, 0.1)', color: '#F59E0B', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '16px' }}>
-            <Download size={32} />
+          <div style={{ width: '56px', height: '56px', borderRadius: '50%', background: 'rgba(16, 185, 129, 0.1)', color: 'var(--accent-success)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '16px' }}>
+            <FileDown size={28} />
           </div>
-          <h2 style={{ fontSize: '1.2rem', fontWeight: 700, marginBottom: '8px' }}>Restaurar Datos</h2>
-          <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: '24px', flex: 1 }}>
-            Descarga el último respaldo guardado en la nube. <b>Atención:</b> Esto reemplazará todos los datos locales actuales.
+          <h2 style={{ fontSize: '1.15rem', fontWeight: 700, marginBottom: '8px' }}>Descargar Archivo (.JSON)</h2>
+          <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginBottom: '20px', flex: 1 }}>
+            Descarga una copia completa de tu base de datos a un archivo en tu computadora o pendrive USB.
+          </p>
+          <button 
+            onClick={handleExportJson} 
+            className="btn" 
+            style={{ 
+              width: '100%', display: 'flex', justifyContent: 'center', gap: '8px', padding: '12px',
+              background: 'transparent', border: '1px solid var(--accent-success)', color: 'var(--accent-success)', fontWeight: 600
+            }}
+          >
+            <FileDown size={18} /> Descargar Archivo JSON
+          </button>
+        </div>
+
+        {/* Tarjeta 3: Restaurar desde la Nube */}
+        <div className="card" style={{ padding: '24px', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+          <div style={{ width: '56px', height: '56px', borderRadius: '50%', background: 'rgba(245, 158, 11, 0.1)', color: '#F59E0B', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '16px' }}>
+            <Download size={28} />
+          </div>
+          <h2 style={{ fontSize: '1.15rem', fontWeight: 700, marginBottom: '8px' }}>Restaurar desde Nube</h2>
+          <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginBottom: '20px', flex: 1 }}>
+            Recupera la copia guardada en Firebase. Reemplaza todos los datos locales existentes.
           </p>
           <button 
             onClick={handleRestore} 
@@ -267,10 +362,27 @@ const BackupScreen = () => {
               background: 'transparent', border: '1px solid #F59E0B', color: '#F59E0B', fontWeight: 600
             }}
           >
-            <Download size={18} /> {loading ? 'Procesando...' : 'Restaurar desde Nube'}
+            <Download size={18} /> {loading ? 'Restaurando...' : 'Restaurar de la Nube'}
           </button>
         </div>
 
+      </div>
+
+      {/* Tarjeta de Restaurar Copia Automática Local */}
+      <div className="card" style={{ marginTop: '20px', padding: '16px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--bg-app)', border: '1px solid var(--border-medium)' }}>
+        <div>
+          <strong style={{ fontSize: '0.9rem', color: 'var(--text-primary)' }}>¿Problemas con los datos recientes?</strong>
+          <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+            Puedes restaurar rápidamente el snapshot local automático más reciente generado por este equipo.
+          </p>
+        </div>
+        <button 
+          onClick={handleRestoreLocalSnapshot}
+          className="btn btn-outline"
+          style={{ fontSize: '0.85rem', padding: '8px 16px', display: 'flex', alignItems: 'center', gap: '6px' }}
+        >
+          <RefreshCw size={14} /> Restaurar Copia Local
+        </button>
       </div>
 
       <FirebaseLoginModal 
@@ -285,3 +397,4 @@ const BackupScreen = () => {
 };
 
 export default BackupScreen;
+

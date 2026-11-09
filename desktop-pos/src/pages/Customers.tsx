@@ -1,16 +1,20 @@
 import React, { useState } from 'react';
-import { Search, Plus, Filter, MoreVertical, User, Mail, Phone, MapPin, Users, FileText } from 'lucide-react';
+import { Search, Plus, Filter, MoreVertical, User, Mail, Phone, MapPin, Users, FileText, Tag } from 'lucide-react';
 import CustomerFormModal from '../components/customers/CustomerFormModal';
+import CustomerPricesModal from '../components/customers/CustomerPricesModal';
 import { useAuth } from '../context/AuthContext';
-import { addCustomer, deleteCustomer } from '../firebase/customersService';
+import { addCustomer, deleteCustomer, updateCustomer } from '../firebase/customersService';
+import { logAuditEvent } from '../firebase/auditService';
 
-const Customers = ({ customers, showToast }: { customers: any[], setCustomers: (cust: any[]) => void, showToast?: (m: string, t?: 'success'|'error'|'info') => void }) => {
-  const { userData } = useAuth();
+const Customers = ({ customers, inventory, showToast }: { customers: any[], setCustomers: (cust: any[]) => void, inventory: any[], showToast?: (m: string, t?: 'success'|'error'|'info') => void }) => {
+  const { userData, companyId, currentUser } = useAuth();
+  const currency = userData?.currency || '$';
   const [searchTerm, setSearchTerm] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [statusFilter, setStatusFilter] = useState('Todos');
   const [showFilters, setShowFilters] = useState(false);
   const [activeMenu, setActiveMenu] = useState<string | null>(null);
+  const [pricesCustomer, setPricesCustomer] = useState<any | null>(null);
 
   const handleAddCustomer = async (data: any) => {
     if (!userData?.companyId) return;
@@ -47,6 +51,19 @@ const Customers = ({ customers, showToast }: { customers: any[], setCustomers: (
       }
       setActiveMenu(null);
     }
+  };
+
+  const handleSavePrices = async (customPrices: Record<string, number>) => {
+    await updateCustomer(pricesCustomer.id, { customPrices });
+    logAuditEvent(
+      userData?.companyId || companyId || 'local',
+      currentUser?.uid || currentUser?.id || 'local',
+      userData?.name || 'Usuario Local',
+      'Precios Únicos Actualizados',
+      `${pricesCustomer.name} ahora tiene ${Object.keys(customPrices).length} precio(s) único(s).`,
+      'warning'
+    );
+    if (showToast) showToast('Precios únicos guardados', 'success');
   };
 
   const filteredCustomers = customers.filter(c => {
@@ -173,9 +190,18 @@ const Customers = ({ customers, showToast }: { customers: any[], setCustomers: (
                     <div style={{
                       position: 'absolute', top: '100%', right: 0, marginTop: '4px',
                       background: 'var(--bg-card)', borderRadius: '8px', border: '1px solid var(--border-light)',
-                      boxShadow: '0 4px 15px rgba(0,0,0,0.1)', zIndex: 10, width: '120px', overflow: 'hidden'
+                      boxShadow: '0 4px 15px rgba(0,0,0,0.1)', zIndex: 10, width: '150px', overflow: 'hidden'
                     }}>
-                      <div 
+                      <div
+                        onClick={() => {
+                          setPricesCustomer(customer);
+                          setActiveMenu(null);
+                        }}
+                        style={{ padding: '10px 16px', fontSize: '0.85rem', cursor: 'pointer', borderBottom: '1px solid var(--border-light)' }} className="hover:bg-[var(--bg-app)]"
+                      >
+                        Precios únicos
+                      </div>
+                      <div
                         onClick={() => {
                            if (showToast) showToast('Función de editar próximamente', 'info');
                            setActiveMenu(null);
@@ -220,6 +246,12 @@ const Customers = ({ customers, showToast }: { customers: any[], setCustomers: (
                     <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{customer.address}</span>
                   </div>
                 )}
+                {Object.keys(customer.customPrices || {}).length > 0 && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--accent-success)', fontWeight: 600 }}>
+                    <div style={{ width: '20px' }}><Tag size={14} /></div>
+                    <span>{Object.keys(customer.customPrices).length} precio(s) único(s)</span>
+                  </div>
+                )}
               </div>
 
               <div style={{ marginTop: 'auto', paddingTop: '16px', borderTop: '1px solid var(--border-light)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -241,8 +273,18 @@ const Customers = ({ customers, showToast }: { customers: any[], setCustomers: (
       <CustomerFormModal 
         isOpen={isModalOpen} 
         onClose={() => setIsModalOpen(false)} 
-        onSubmit={handleAddCustomer} 
+        onSubmit={handleAddCustomer}
       />
+
+      {pricesCustomer && (
+        <CustomerPricesModal
+          customer={pricesCustomer}
+          inventory={inventory}
+          currency={currency}
+          onClose={() => setPricesCustomer(null)}
+          onSave={handleSavePrices}
+        />
+      )}
     </div>
   );
 };

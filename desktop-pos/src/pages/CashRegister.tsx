@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { Calculator, Wallet, DollarSign, Save, AlertTriangle, CheckCircle, Printer, Download, ArrowLeft, Receipt, Package, TrendingUp, CreditCard } from 'lucide-react';
-import { collection, addDoc, serverTimestamp, getDocs } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp, getDocs, query, where } from 'firebase/firestore';
 import { db } from '../firebase/config';
 import { useAuth } from '../context/AuthContext';
 import { getLocalStoreSettings } from '../services/localDb';
+import { getSaleDayKey, toDayKey } from '../utils/dateRanges';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
@@ -14,7 +15,8 @@ interface CashRegisterProps {
 }
 
 const CashRegister: React.FC<CashRegisterProps> = ({ salesHistory = [], showToast }) => {
-  const { currentUser, userData } = useAuth();
+  const { currentUser, userData, companyId } = useAuth();
+  const effectiveCompanyId = userData?.companyId || companyId || 'local';
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   
@@ -31,31 +33,45 @@ const CashRegister: React.FC<CashRegisterProps> = ({ salesHistory = [], showToas
   
   const [closedRegisterData, setClosedRegisterData] = useState<any>(null);
   const [showWarningModal, setShowWarningModal] = useState(false);
+  // Ventas que ya entraron en un corte: un segundo corte del día no debe contarlas otra vez.
+  const [closedSaleIds, setClosedSaleIds] = useState<Set<string>>(new Set());
+  const [cutsLoaded, setCutsLoaded] = useState(false);
 
   const currency = userData?.currency || '$';
-  const taxRateVal = userData?.taxRate !== undefined ? userData.taxRate / 100 : 0.16;
+
+  const fetchCompanyCuts = () => getDocs(query(collection(db, 'cash_registers'), where('companyId', '==', effectiveCompanyId)));
+
+  useEffect(() => {
+    fetchCompanyCuts()
+      .then(snapshot => {
+        const ids = snapshot.docs.flatMap(cut => (cut.data().salesDetails || []).map((sale: any) => sale.id));
+        setClosedSaleIds(new Set(ids));
+      })
+      .catch(error => console.error('Error cargando cortes anteriores:', error))
+      .finally(() => setCutsLoaded(true));
+  }, [effectiveCompanyId]);
 
   useEffect(() => {
     fetchTodaysSales();
-  }, [salesHistory]);
+  }, [salesHistory, closedSaleIds]);
 
   const fetchTodaysSales = () => {
     setLoading(true);
     try {
-      const todayStr = new Date().toISOString().split('T')[0];
-      const todaySalesFiltered = salesHistory.filter(sale => sale.date === todayStr && sale.status !== 'returned');
+      const today = toDayKey(new Date());
+      const todaySalesFiltered = salesHistory.filter(sale =>
+        getSaleDayKey(sale) === today && sale.status !== 'returned' && !closedSaleIds.has(sale.id)
+      );
       
       let profit = 0;
       const methods = { Efectivo: 0, Tarjeta: 0, Transferencia: 0 };
       const summary = { grossTotal: 0, discounts: 0, taxes: 0, netTotal: 0 };
       
       todaySalesFiltered.forEach((sale) => {
-        const saleMethod = sale.paymentMethod || 'Efectivo';
-        if (methods[saleMethod as keyof typeof methods] !== undefined) {
-           methods[saleMethod as keyof typeof methods] += sale.total;
-        } else {
-           methods['Efectivo'] += sale.total;
-        }
+        // Ventas antiguas guardaron el método escrito a mano ("tarjeta", " Tarjeta").
+        const saleMethod = String(sale.paymentMethod || 'Efectivo').trim().toLowerCase();
+        const methodKey = (Object.keys(methods) as (keyof typeof methods)[]).find(key => key.toLowerCase() === saleMethod) || 'Efectivo';
+        methods[methodKey] += sale.total;
         
         let saleGross = 0;
         let saleDiscountAmount = 0;
@@ -71,7 +87,8 @@ const CashRegister: React.FC<CashRegisterProps> = ({ salesHistory = [], showToas
         });
         
         const saleSubtotal = saleGross - saleDiscountAmount;
-        const saleTax = saleSubtotal * taxRateVal;
+        // El impuesto real de la factura: la tasa pudo cambiar o estar desactivada.
+        const saleTax = sale.total - saleSubtotal;
         
         summary.grossTotal += saleGross;
         summary.discounts += saleDiscountAmount;
@@ -105,14 +122,16 @@ const CashRegister: React.FC<CashRegisterProps> = ({ salesHistory = [], showToas
 
     setSubmitting(true);
     try {
-      const snapshot = await getDocs(collection(db, 'cash_registers'));
-      const nextTicketNumber = snapshot.size + 1;
+      const snapshot = await fetchCompanyCuts();
+      const lastTicketNumber = Math.max(0, ...snapshot.docs.map(cut => parseInt(String(cut.data().displayId || '').replace('Z-', ''), 10) || 0));
+      const nextTicketNumber = lastTicketNumber + 1;
       const displayId = `Z-${nextTicketNumber.toString().padStart(4, '0')}`;
 
       const dataToSave = {
-        cashierId: currentUser?.uid,
+        // Los usuarios locales con PIN tienen id, no uid; Firestore rechaza undefined.
+        cashierId: currentUser?.uid || currentUser?.id || 'local',
         cashierName: userData?.name || currentUser?.email || 'Administrador',
-        companyId: userData?.companyId || 'default',
+        companyId: effectiveCompanyId,
         baseCash: parsedBase,
         expectedAmount: expectedCashInDrawer,
         reportedAmount: parseFloat(countedCash),
@@ -122,7 +141,21 @@ const CashRegister: React.FC<CashRegisterProps> = ({ salesHistory = [], showToas
         methods: salesByMethod,
         totalsSummary: totalsSummary,
         notes: notes,
-        salesDetails: todaysSales,
+        // Solo lo que usan los reportes: copiar los productos completos podría pasar el límite de 1 MB de Firestore.
+        salesDetails: todaysSales.map(sale => ({
+          id: sale.id,
+          time: sale.time || '',
+          total: sale.total,
+          paymentMethod: sale.paymentMethod || 'Efectivo',
+          client: sale.client || '',
+          items: (sale.items || []).map((item: any) => ({
+            id: item.id,
+            name: item.name,
+            quantity: item.quantity,
+            price: item.price,
+            discount: item.discount || 0
+          }))
+        })),
         timestamp: serverTimestamp(),
         displayId: displayId
       };
@@ -131,6 +164,7 @@ const CashRegister: React.FC<CashRegisterProps> = ({ salesHistory = [], showToas
       if (showToast) showToast("Cierre de caja guardado con éxito", 'success');
       
       setClosedRegisterData({ ...dataToSave, id: docRef.id });
+      setClosedSaleIds(prev => new Set([...prev, ...todaysSales.map(sale => sale.id)]));
       setCountedCash('');
       setNotes('');
     } catch (error) {
@@ -373,7 +407,7 @@ const CashRegister: React.FC<CashRegisterProps> = ({ salesHistory = [], showToas
           </div>
           
           <button 
-            onClick={() => { setClosedRegisterData(null); fetchTodaysSales(); }}
+            onClick={() => setClosedRegisterData(null)}
             className="btn btn-primary" 
             style={{ width: '100%', display: 'flex', justifyContent: 'center', gap: '8px', padding: '16px' }}
           >
@@ -606,7 +640,7 @@ const CashRegister: React.FC<CashRegisterProps> = ({ salesHistory = [], showToas
             className="btn btn-primary" 
             style={{ width: '100%', padding: '18px', fontSize: '1.1rem', display: 'flex', justifyContent: 'center', gap: '12px' }}
             onClick={handleCloseRegister}
-            disabled={submitting || loading}
+            disabled={submitting || loading || !cutsLoaded}
           >
             {submitting ? 'Procesando...' : (
               <>
